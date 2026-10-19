@@ -54,8 +54,8 @@ class TemplateManagerDialog(QDialog):
         
         filter_layout.addWidget(QLabel("设备类型:"))
         self.device_combo = QComboBox()
-        self.device_combo.addItems(["全部", "华为", "H3C", "锐捷", "迈普", "中兴"])
-        preset = {"huawei": 1, "h3c": 2, "ruijie": 3, "maipu": 4, "zte": 5}.get(device_type, 0)
+        self.device_combo.addItems(["全部", "华为", "H3C", "锐捷", "迈普", "中兴", "迪普"])
+        preset = {"huawei": 1, "h3c": 2, "ruijie": 3, "maipu": 4, "zte": 5, "dptech": 6}.get(device_type, 0)
         self.device_combo.setCurrentIndex(preset)
         self.device_combo.currentIndexChanged.connect(self.on_device_filter_changed)
         filter_layout.addWidget(self.device_combo)
@@ -235,6 +235,7 @@ class TemplateManagerDialog(QDialog):
                 "锐捷": "ruijie",
                 "迈普": "maipu",
                 "中兴": "zte",
+                "迪普": "dptech",
             }
             device_type = device_map.get(self.device_combo.currentText())
         
@@ -253,6 +254,8 @@ class TemplateManagerDialog(QDialog):
                 item.setForeground(Qt.darkBlue)
             elif template.device_type == "zte":
                 item.setForeground(Qt.darkRed)
+            elif template.device_type == "dptech":
+                item.setForeground(Qt.darkMagenta)
             else:
                 item.setForeground(Qt.darkGreen)
             
@@ -281,6 +284,7 @@ class TemplateManagerDialog(QDialog):
                 "ruijie": "锐捷",
                 "maipu": "迈普",
                 "zte": "中兴",
+                "dptech": "迪普",
             }
             self.device_label.setText(
                 device_names.get(self.current_template.device_type, self.current_template.device_type)
