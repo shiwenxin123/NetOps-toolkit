@@ -339,7 +339,7 @@ class SecurityConfigTab(QWidget):
         
         QMessageBox.information(self, "成功", f"ACL {self.traffic_filter_acl.value()} 已应用到接口 {interface}")
     
-    def get_config(self):
+    def collect_config(self):
         config = {}
         
         if self.acls:
@@ -413,6 +413,10 @@ class SecurityConfigTab(QWidget):
                 "type": anti_types[0] if len(anti_types) == 1 else ",".join(anti_types)
             }
         
+        return config
+    
+    def get_config(self):
+        config = self.collect_config()
         if config:
             return SecurityConfigGenerator.generate_security_all(config)
         return ""

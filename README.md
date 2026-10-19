@@ -1,6 +1,6 @@
 # NetOps Toolkit v4.0 - 网络运维工具集
 
-一个功能强大、现代化界面的**多品牌交换机配置生成工具**，支持**华为/H3C/锐捷/迈普**四大品牌，内置**11+网络工具**，基于 Python + PyQt5 开发。
+一个功能强大、现代化界面的**多品牌交换机配置生成工具**，支持**华为/H3C/锐捷/迈普/中兴**，内置**11+网络工具**，基于 Python + PyQt5 开发。
 
 ## v4.0 新特性
 
@@ -10,12 +10,13 @@
 - **窗口自适应** - 自动适配不同屏幕尺寸
 - **现代化控件** - 渐变按钮、玻璃态卡片
 
-### 🔄 四品牌设备支持
+### 🔄 多品牌设备支持
 - **华为 (Huawei)** - 248条命令 + 8个配置案例
 - **华三 (H3C)** - 239条命令 + 9个配置案例  
 - **锐捷 (Ruijie)** - 284条命令 + 10个配置案例
 - **迈普 (Maipu)** - 229条命令 + 8个配置案例
-- 一键切换设备类型，自动适配命令格式
+- **中兴 (ZTE)** - ZXR10 5200/5900/8900 经典 ZXROS 配置生成（基础、VLAN、路由、ACL、聚合）
+- 一键切换设备类型。选择「中兴」后，生成结果使用 ZXR10 命令，而不是华为 `sysname` / `Vlanif`
 
 ### 🧰 内置网络工具箱
 - **子网计算器** - IP子网计算、子网划分、IP范围转CIDR
@@ -135,6 +136,7 @@ netops_toolkit/
 │   ├── h3c_config.py        # H3C配置生成器
 │   ├── ruijie_config.py     # 锐捷配置生成器
 │   ├── maipu_config.py      # 迈普配置生成器
+│   ├── zte_config.py        # 中兴 ZXR10 配置生成器
 │   └── qos_config.py        # QoS配置生成器
 └── utils/
     ├── templates.py         # 配置模板
@@ -155,7 +157,7 @@ netops_toolkit/
 ## 使用说明
 
 ### 配置生成
-1. 选择设备品牌（华为/H3C/锐捷/迈普）
+1. 选择设备品牌（华为/H3C/锐捷/迈普/中兴）
 2. 点击"配置模板"选择预设场景（可选）
 3. 在各标签页填写配置参数
 4. 点击"验证配置"检查参数格式
@@ -189,6 +191,24 @@ netops_toolkit/
 | 端口聚合 | `interface Eth-Trunk1` | `interface Bridge-Aggregation 1` |
 | SSH服务 | `stelnet server enable` | `ssh server enable` |
 | 用户权限 | `level 15` (0-15) | `level 3` (0-3) |
+
+### 中兴 ZXR10
+
+品牌选「中兴 (ZTE)」后点「生成配置」。脚本按经典 ZXROS 输出，适合 ZXR10 5200/5900/8900 这一类交换机：
+
+| 配置项 | 中兴 ZXR10 |
+|--------|------------|
+| 进入配置 | `configure terminal` |
+| 主机名 | `hostname` |
+| 三层 VLAN | `interface vlan 10` |
+| Access/Trunk | `switchport access vlan` / `switchport trunk vlan` |
+| 聚合 | `interface smartgroup1`，成员口 `smartgroup 1 mode active` |
+| SSH | `ssh server enable` |
+| 生成树 | `spanning-tree enable`，模式为 `sstp` / `rstp` / `mstp` |
+
+界面里如果管理口仍是 `Vlanif1`，生成时会改成 `vlan 1`。二层口请手写 `gei_1/1` 或 `fei_1/1`。
+
+这套语法不覆盖 5900E/5960/9900 的 ROSNG（`system-user`、`gei-0/1/1/1`），也不覆盖 C300/C600 OLT。端口安全、PoE、`rate-limit` 在不同子系列上命令名可能不同，脚本里用的是接入/汇聚交换机上较常见的写法。
 
 ## 系统要求
 

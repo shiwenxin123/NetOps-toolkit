@@ -10,6 +10,7 @@ from .routing_config import RoutingConfigGenerator
 from .security_config import SecurityConfigGenerator
 from .interface_config import InterfaceConfigGenerator
 from .qos_config import QoSConfigGenerator
+from .zte_config import ZTEConfigError, generate_switch_config
 
 __all__ = [
     "BasicConfigGenerator",
@@ -17,5 +18,7 @@ __all__ = [
     "RoutingConfigGenerator",
     "SecurityConfigGenerator",
     "InterfaceConfigGenerator",
-    "QoSConfigGenerator"
+    "QoSConfigGenerator",
+    "ZTEConfigError",
+    "generate_switch_config",
 ]

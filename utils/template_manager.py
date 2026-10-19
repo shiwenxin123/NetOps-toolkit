@@ -207,6 +207,69 @@ class TemplateManager:
         }
     }
     
+    BUILTIN_ZTE_TEMPLATES = {
+        "接入交换机标准配置": {
+            "description": "中兴 ZXR10 接入交换机示例（经典 ZXROS，接口名为 gei_1/x）",
+            "config": {
+                "basic": {
+                    "hostname": "ZTE-Access-01",
+                    "password": {"value": "Admin@123", "encrypted": False},
+                    "mgmt_interface": {
+                        "interface": "vlan 1",
+                        "ip_address": "192.168.1.1",
+                        "mask": "255.255.255.0",
+                        "gateway": "192.168.1.254"
+                    },
+                    "enable_ssh": True,
+                    "user": {"username": "admin", "password": "Admin@123", "level": 15}
+                },
+                "vlan": {
+                    "vlans": [
+                        {"id": 10, "name": "Office"},
+                        {"id": 20, "name": "Server"}
+                    ],
+                    "interfaces": [
+                        {"interface": "gei_1/1", "type": "access", "vlan_id": 10},
+                        {
+                            "interface": "gei_1/24",
+                            "type": "trunk",
+                            "trunk_vlans": [10, 20],
+                            "pvid": 1
+                        }
+                    ],
+                    "vlanifs": [
+                        {
+                            "vlan_id": 10,
+                            "ip_address": "192.168.10.1",
+                            "mask": "255.255.255.0",
+                            "description": "Office-GW"
+                        }
+                    ]
+                }
+            }
+        },
+        "核心交换机配置": {
+            "description": "中兴 ZXR10 核心交换机示例，含 OSPF 与静态默认路由所需的基础项",
+            "config": {
+                "basic": {
+                    "hostname": "ZTE-Core-01",
+                    "password": {"value": "CoreAdmin@123", "encrypted": False},
+                    "mgmt_interface": {
+                        "interface": "vlan 1",
+                        "ip_address": "10.0.0.1",
+                        "mask": "255.255.255.0"
+                    },
+                    "enable_ssh": True,
+                    "user": {"username": "admin", "password": "CoreAdmin@123", "level": 15},
+                    "ntp": {
+                        "servers": [{"ip": "10.0.0.100", "prefer": True}],
+                        "timezone": "UTC+8"
+                    }
+                }
+            }
+        }
+    }
+
     def __init__(self, templates_dir: str = None):
         if templates_dir is None:
             templates_dir = os.path.join(os.path.dirname(__file__), "..", "templates")
@@ -264,6 +327,17 @@ class TemplateManager:
             )
             template.is_builtin = True
             self.templates[f"maipu_{name}"] = template
+
+        for name, data in self.BUILTIN_ZTE_TEMPLATES.items():
+            template = Template(
+                name=name,
+                device_type="zte",
+                description=data["description"],
+                config=data["config"],
+                tags=["内置", "中兴"]
+            )
+            template.is_builtin = True
+            self.templates[f"zte_{name}"] = template
     
     def _load_custom_templates(self):
         if os.path.exists(self.custom_templates_file):

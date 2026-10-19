@@ -248,7 +248,7 @@ class BasicConfigTab(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.addWidget(scroll)
     
-    def get_config(self):
+    def collect_config(self):
         hostname = self.hostname_input.text().strip()
         password = self.password_input.text().strip()
         
@@ -347,6 +347,10 @@ class BasicConfigTab(QWidget):
                 "domain": self.dns_domain.text().strip() or None
             }
         
+        return config
+    
+    def get_config(self):
+        config = self.collect_config()
         if config:
             return BasicConfigGenerator.generate_basic_all(config)
         return ""
@@ -472,3 +476,15 @@ class BasicConfigTab(QWidget):
             self.username_input.setText(user.get("username", ""))
             self.user_password_input.setText(user.get("password", ""))
             self.privilege_level.setValue(user.get("level", 15))
+
+        if "ntp" in config:
+            servers = config["ntp"].get("servers") or []
+            if servers:
+                self.ntp_server1.setText(servers[0].get("ip", ""))
+            if len(servers) > 1:
+                self.ntp_server2.setText(servers[1].get("ip", ""))
+            zone = config["ntp"].get("timezone")
+            if zone:
+                zone_index = self.ntp_timezone.findText(zone)
+                if zone_index >= 0:
+                    self.ntp_timezone.setCurrentIndex(zone_index)

@@ -207,7 +207,7 @@ class VLANConfigTab(QWidget):
             "type": vlan_type
         }
         
-        if vlan_type == "access":
+        if vlan_type in ("access", "hybrid"):
             iface_data["vlan_id"] = self.port_vlan_id.value()
         elif vlan_type == "trunk":
             trunk_vlans = self.trunk_vlans_input.text().strip()
@@ -267,7 +267,7 @@ class VLANConfigTab(QWidget):
         self.pvid_input.setEnabled(is_trunk)
         self.port_vlan_id.setEnabled(not is_trunk)
     
-    def get_config(self):
+    def collect_config(self):
         config = {}
         
         if self.vlans:
@@ -290,6 +290,10 @@ class VLANConfigTab(QWidget):
                 "enable": stp_enabled
             }
         
+        return config
+    
+    def get_config(self):
+        config = self.collect_config()
         if config:
             return VLANConfigGenerator.generate_vlan_all(config)
         return ""
@@ -340,15 +344,19 @@ class VLANConfigTab(QWidget):
         
         if "vlans" in config:
             self.vlans = config["vlans"].copy()
+            self.vlan_list.clear()
             for vlan in self.vlans:
                 self.vlan_list.addItem(f"VLAN {vlan['id']}: {vlan.get('name', '')}")
         
         if "interfaces" in config:
             self.interfaces = config["interfaces"].copy()
+            self.interface_list.clear()
             for iface in self.interfaces:
                 self.interface_list.addItem(f"{iface['interface']} - {iface['type']}")
         
         if "vlanifs" in config:
             self.vlanifs = config["vlanifs"].copy()
+            self.vlanif_list.clear()
             for vlanif in self.vlanifs:
-                self.vlanif_list.addItem(f"Vlanif{vlanif['vlan_id']}: {vlanif.get('ip', '')}")
+                ip_addr = vlanif.get("ip_address") or vlanif.get("ip", "")
+                self.vlanif_list.addItem(f"Vlanif{vlanif['vlan_id']}: {ip_addr}")

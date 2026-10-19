@@ -21,6 +21,24 @@ from gui.tabs.security_tab import SecurityConfigTab
 from gui.tabs.interface_tab import InterfaceConfigTab
 from utils.templates import get_template_names, get_template_config
 from utils.validator import ConfigValidator
+from modules.zte_config import ZTEConfigError, generate_switch_config
+
+
+DEVICE_TYPES = ["huawei", "h3c", "ruijie", "maipu", "zte"]
+DEVICE_CHOICES = [
+    ("huawei", "华为 (Huawei)"),
+    ("h3c", "华三 (H3C)"),
+    ("ruijie", "锐捷 (Ruijie)"),
+    ("maipu", "迈普 (Maipu)"),
+    ("zte", "中兴 (ZTE)"),
+]
+DEVICE_TITLES = {
+    "huawei": ("华为交换机配置脚本生成工具", "华为", "华为交换机配置脚本"),
+    "h3c": ("H3C华三交换机配置脚本生成工具", "H3C", "H3C华三交换机配置脚本"),
+    "ruijie": ("锐捷交换机配置脚本生成工具", "锐捷", "锐捷交换机配置脚本"),
+    "maipu": ("迈普交换机配置脚本生成工具", "迈普", "迈普交换机配置脚本"),
+    "zte": ("中兴交换机配置脚本生成工具", "中兴", "中兴ZXR10交换机配置脚本"),
+}
 
 
 HUAWEI_TEMPLATES = {
@@ -190,9 +208,9 @@ class MainWindow(QMainWindow):
         device_layout.addWidget(device_label)
         
         self.device_combo = QComboBox()
-        self.device_combo.addItems(["华为 (Huawei)", "华三 (H3C)", "锐捷 (Ruijie)", "迈普 (Maipu)"])
+        self.device_combo.addItems([label for _, label in DEVICE_CHOICES])
         self.device_combo.currentIndexChanged.connect(self.on_device_changed)
-        self.device_combo.setMinimumWidth(160)
+        self.device_combo.setMinimumWidth(180)
         device_layout.addWidget(self.device_combo)
         
         header_layout.addWidget(device_widget)
@@ -209,6 +227,15 @@ class MainWindow(QMainWindow):
         header_layout.addWidget(version_label)
         
         main_layout.addWidget(header_widget)
+
+        self.brand_hint = QLabel("")
+        self.brand_hint.setWordWrap(True)
+        self.brand_hint.setVisible(False)
+        self.brand_hint.setStyleSheet(
+            "color: #0D47A1; background: #E3F2FD; border: 1px solid #90CAF9;"
+            "border-radius: 4px; padding: 6px 10px;"
+        )
+        main_layout.addWidget(self.brand_hint)
         
         content_splitter = QSplitter(Qt.Horizontal)
         content_splitter.setHandleWidth(3)
@@ -455,6 +482,10 @@ class MainWindow(QMainWindow):
         apply_h3c_action = QAction("应用H3C模板", self)
         apply_h3c_action.triggered.connect(lambda: self.quick_apply_template("h3c"))
         template_menu.addAction(apply_h3c_action)
+
+        apply_zte_action = QAction("应用中兴模板", self)
+        apply_zte_action.triggered.connect(lambda: self.quick_apply_template("zte"))
+        template_menu.addAction(apply_zte_action)
         
         template_menu.addSeparator()
         
@@ -475,25 +506,51 @@ class MainWindow(QMainWindow):
     
     def on_device_changed(self, index):
         """设备类型切换"""
-        device_types = ["huawei", "h3c", "ruijie", "maipu"]
-        self.current_device_type = device_types[index]
+        if index < 0 or index >= len(DEVICE_TYPES):
+            return
+        self.current_device_type = DEVICE_TYPES[index]
         
-        device_names = {
-            "huawei": ("华为交换机配置脚本生成工具", "华为", "Huawei"),
-            "h3c": ("H3C华三交换机配置脚本生成工具", "H3C", "H3C"),
-            "ruijie": ("锐捷交换机配置脚本生成工具", "锐捷", "Ruijie"),
-            "maipu": ("迈普交换机配置脚本生成工具", "迈普", "Maipu")
-        }
-        
-        title, name, _ = device_names[self.current_device_type]
+        title, name, _ = DEVICE_TITLES[self.current_device_type]
         self.header_label.setText(title)
         self.setWindowTitle(f"NetOps Toolkit v4.0 - {name}配置")
         
         for tab in self.tabs.values():
             tab.clear_config()
         self.preview_text.clear()
+        self._apply_brand_field_hints()
         
-        self.statusBar().showMessage(f"已切换到{name}模式", 3000)
+        if self.current_device_type == "zte":
+            self.statusBar().showMessage(
+                "已切换到中兴模式。接口使用 gei_1/1 或 fei_1/1，三层口使用 vlan 10", 8000
+            )
+        else:
+            self.statusBar().showMessage(f"已切换到{name}模式", 3000)
+
+    def _apply_brand_field_hints(self):
+        """中兴模式下改掉华为接口示例，避免生成时还按 Vlanif 理解。"""
+        zte = self.current_device_type == "zte"
+        self.brand_hint.setVisible(zte)
+        if zte:
+            self.brand_hint.setText(
+                "中兴 ZXR10 经典 CLI（5200/5900/8900）。"
+                "二层口填 gei_1/1 或 fei_1/1，三层口填 vlan 10。"
+                "点「生成配置」后可在右侧预览，再复制或导出。"
+            )
+            self.tabs["basic"].mgmt_interface.setText("vlan 1")
+            self.tabs["vlan"].interface_input.setPlaceholderText("例如: gei_1/1 或 fei_1/1")
+            self.tabs["interface"].trunk_members.setPlaceholderText("成员端口，逗号分隔 例: gei_1/1,gei_1/2")
+            self.tabs["interface"].rate_interface.setPlaceholderText("接口名，例: gei_1/1")
+            self.tabs["security"].port_sec_interface.setPlaceholderText("例如: gei_1/1")
+            self.tabs["security"].storm_interface.setPlaceholderText("例如: gei_1/1")
+            self.tabs["security"].traffic_filter_interface.setPlaceholderText("例如: gei_1/1")
+        else:
+            self.brand_hint.clear()
+            self.tabs["vlan"].interface_input.setPlaceholderText("例如: GigabitEthernet0/0/1")
+            self.tabs["interface"].trunk_members.setPlaceholderText("成员端口，逗号分隔 例: GE0/0/1,GE0/0/2")
+            self.tabs["interface"].rate_interface.setPlaceholderText("接口名，例: GE0/0/1")
+            self.tabs["security"].port_sec_interface.setPlaceholderText("例如: GigabitEthernet0/0/1")
+            self.tabs["security"].storm_interface.setPlaceholderText("接口名称")
+            self.tabs["security"].traffic_filter_interface.setPlaceholderText("应用ACL的接口")
     
     def open_network_tool(self, tool_name):
         """打开单个网络工具"""
@@ -666,54 +723,78 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "验证通过", "所有配置参数格式正确！")
             self.statusBar().showMessage("验证通过", 3000)
     
-    def generate_config(self):
+    def compose_config(self):
+        """根据当前品牌生成脚本文本。没有可生成内容时返回空串。"""
+        if self.current_device_type == "zte":
+            return self._compose_zte_config()
+
         all_config = []
-        
-        device_headers = {
-            "huawei": ("华为交换机配置脚本", "huawei"),
-            "h3c": ("H3C华三交换机配置脚本", "h3c"),
-            "ruijie": ("锐捷交换机配置脚本", "ruijie"),
-            "maipu": ("迈普交换机配置脚本", "maipu")
-        }
-        
         basic_config = self.tabs["basic"].get_config()
         if basic_config:
             all_config.append(basic_config)
-        
+
         vlan_config = self.tabs["vlan"].get_config()
         if vlan_config:
             all_config.append(vlan_config)
-        
+
         routing_config = self.tabs["routing"].get_config()
         if routing_config:
             all_config.append(routing_config)
-        
+
         security_config = self.tabs["security"].get_config()
         if security_config:
             all_config.append(security_config)
-        
+
         interface_config = self.tabs["interface"].get_config()
         if interface_config:
             all_config.append(interface_config)
-        
-        if not all_config:
-            QMessageBox.warning(self, "警告", "请至少配置一个模块！")
-            return
-        
-        full_config = "\n".join(all_config)
-        
-        header_title, _ = device_headers.get(self.current_device_type, device_headers["huawei"])
-        header = f"""#
-# {header_title}
-# 生成时间: {__import__('time').strftime('%Y-%m-%d %H:%M:%S')}
-#
 
-"""
-        
+        if not all_config:
+            return ""
+
+        full_config = "\n".join(all_config)
+        _, _, header_title = DEVICE_TITLES.get(
+            self.current_device_type, DEVICE_TITLES["huawei"]
+        )
+        header = (
+            "#\n"
+            f"# {header_title}\n"
+            f"# 生成时间: {__import__('time').strftime('%Y-%m-%d %H:%M:%S')}\n"
+            "#\n\n"
+        )
         if self.current_device_type == "h3c":
             full_config = full_config.replace("Vlanif", "Vlan-interface")
-        
-        self.preview_text.setPlainText(header + full_config)
+        return header + full_config
+
+    def _compose_zte_config(self):
+        vlan_tab = self.tabs["vlan"]
+        vlan_cfg = vlan_tab.collect_config()
+        vlan_cfg["stp"] = {
+            "mode": vlan_tab.stp_mode_combo.currentText(),
+            "priority": vlan_tab.stp_priority.value(),
+            "enable": vlan_tab.stp_enable.isChecked(),
+        }
+        return generate_switch_config(
+            basic=self.tabs["basic"].collect_config(),
+            vlan=vlan_cfg,
+            routing=self.tabs["routing"].collect_config(),
+            security=self.tabs["security"].collect_config(),
+            interface=self.tabs["interface"].collect_config(),
+        )
+
+    def generate_config(self):
+        try:
+            full_config = self.compose_config()
+        except ZTEConfigError as exc:
+            QMessageBox.warning(self, "无法生成", str(exc))
+            self.statusBar().showMessage(str(exc), 5000)
+            return
+
+        if not full_config:
+            QMessageBox.warning(self, "警告", "请至少配置一个模块！")
+            return
+
+        self.preview_text.setPlainText(full_config)
         self.statusBar().showMessage("配置生成成功！", 3000)
         QMessageBox.information(self, "成功", "配置生成成功！")
     
@@ -813,6 +894,11 @@ class MainWindow(QMainWindow):
     
     def quick_apply_template(self, device_type):
         from gui.dialogs.template_dialog import TemplateManagerDialog
+
+        if device_type in DEVICE_TYPES:
+            index = DEVICE_TYPES.index(device_type)
+            if self.device_combo.currentIndex() != index:
+                self.device_combo.setCurrentIndex(index)
         
         dialog = TemplateManagerDialog(self, device_type)
         dialog.template_selected.connect(self.apply_template_config)
