@@ -270,6 +270,73 @@ class TemplateManager:
         }
     }
 
+    BUILTIN_DPTECH_TEMPLATES = {
+        "三层防火墙基础配置": {
+            "description": "迪普 FW1000 带外管理示例：meth0_0、SSH、管理员和默认路由",
+            "config": {
+                "basic": {
+                    "hostname": "DP-FW-01",
+                    "password": {"value": "Admin@123", "encrypted": False},
+                    "mgmt_interface": {
+                        "interface": "meth0_0",
+                        "ip_address": "192.168.0.1",
+                        "mask": "255.255.255.0",
+                        "gateway": "192.168.0.254"
+                    },
+                    "enable_ssh": True,
+                    "user": {"username": "admin", "password": "Admin@123", "level": 15},
+                    "ntp": {
+                        "servers": [{"ip": "10.0.0.100", "prefer": True}],
+                        "timezone": "UTC+8"
+                    },
+                    "dns": {"servers": ["223.5.5.5"]}
+                }
+            }
+        },
+        "安全域与包过滤": {
+            "description": "迪普 FW1000 业务口、VLAN 接口和一条放通 Web 的安全策略",
+            "config": {
+                "basic": {
+                    "hostname": "DP-FW-Edge",
+                    "user": {"username": "netops", "password": "Netops1", "level": 15},
+                    "mgmt_interface": {
+                        "interface": "gige0_0",
+                        "ip_address": "10.1.1.1",
+                        "mask": "255.255.255.0"
+                    },
+                    "enable_ssh": True
+                },
+                "vlan": {
+                    "vlans": [{"id": 10, "name": "Office"}],
+                    "interfaces": [
+                        {"interface": "gige0_1", "type": "access", "vlan_id": 10}
+                    ],
+                    "vlanifs": [{
+                        "vlan_id": 10,
+                        "ip_address": "192.168.10.1",
+                        "mask": "255.255.255.0",
+                        "description": "Office-GW"
+                    }]
+                },
+                "security": {
+                    "acls": [{
+                        "number": 100,
+                        "type": "extended",
+                        "description": "web",
+                        "rules": [{
+                            "id": 10,
+                            "action": "permit",
+                            "protocol": "tcp",
+                            "source": "any",
+                            "destination": "192.168.10.10",
+                            "dest_port": "80"
+                        }]
+                    }]
+                }
+            }
+        }
+    }
+
     def __init__(self, templates_dir: str = None):
         if templates_dir is None:
             templates_dir = os.path.join(os.path.dirname(__file__), "..", "templates")
@@ -338,6 +405,17 @@ class TemplateManager:
             )
             template.is_builtin = True
             self.templates[f"zte_{name}"] = template
+
+        for name, data in self.BUILTIN_DPTECH_TEMPLATES.items():
+            template = Template(
+                name=name,
+                device_type="dptech",
+                description=data["description"],
+                config=data["config"],
+                tags=["内置", "迪普"]
+            )
+            template.is_builtin = True
+            self.templates[f"dptech_{name}"] = template
     
     def _load_custom_templates(self):
         if os.path.exists(self.custom_templates_file):

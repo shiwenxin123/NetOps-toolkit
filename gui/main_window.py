@@ -22,15 +22,17 @@ from gui.tabs.interface_tab import InterfaceConfigTab
 from utils.templates import get_template_names, get_template_config
 from utils.validator import ConfigValidator
 from modules.zte_config import ZTEConfigError, generate_switch_config
+from modules.dptech_config import DPTechConfigError, generate_firewall_config
 
 
-DEVICE_TYPES = ["huawei", "h3c", "ruijie", "maipu", "zte"]
+DEVICE_TYPES = ["huawei", "h3c", "ruijie", "maipu", "zte", "dptech"]
 DEVICE_CHOICES = [
     ("huawei", "华为 (Huawei)"),
     ("h3c", "华三 (H3C)"),
     ("ruijie", "锐捷 (Ruijie)"),
     ("maipu", "迈普 (Maipu)"),
     ("zte", "中兴 (ZTE)"),
+    ("dptech", "迪普 (DPtech)"),
 ]
 DEVICE_TITLES = {
     "huawei": ("华为交换机配置脚本生成工具", "华为", "华为交换机配置脚本"),
@@ -38,6 +40,7 @@ DEVICE_TITLES = {
     "ruijie": ("锐捷交换机配置脚本生成工具", "锐捷", "锐捷交换机配置脚本"),
     "maipu": ("迈普交换机配置脚本生成工具", "迈普", "迈普交换机配置脚本"),
     "zte": ("中兴交换机配置脚本生成工具", "中兴", "中兴ZXR10交换机配置脚本"),
+    "dptech": ("迪普防火墙配置脚本生成工具", "迪普", "迪普FW1000防火墙配置脚本"),
 }
 
 
@@ -486,6 +489,10 @@ class MainWindow(QMainWindow):
         apply_zte_action = QAction("应用中兴模板", self)
         apply_zte_action.triggered.connect(lambda: self.quick_apply_template("zte"))
         template_menu.addAction(apply_zte_action)
+
+        apply_dptech_action = QAction("应用迪普模板", self)
+        apply_dptech_action.triggered.connect(lambda: self.quick_apply_template("dptech"))
+        template_menu.addAction(apply_dptech_action)
         
         template_menu.addSeparator()
         
@@ -523,14 +530,18 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(
                 "已切换到中兴模式。接口使用 gei_1/1 或 fei_1/1，三层口使用 vlan 10", 8000
             )
+        elif self.current_device_type == "dptech":
+            self.statusBar().showMessage(
+                "已切换到迪普模式。接口使用 gige0_1 或 meth0_0，三层 VLAN 口使用 vlan-if 10", 8000
+            )
         else:
             self.statusBar().showMessage(f"已切换到{name}模式", 3000)
 
     def _apply_brand_field_hints(self):
-        """中兴模式下改掉华为接口示例，避免生成时还按 Vlanif 理解。"""
-        zte = self.current_device_type == "zte"
-        self.brand_hint.setVisible(zte)
-        if zte:
+        """中兴和迪普使用自己的接口名，避免沿用华为的 Vlanif 示例。"""
+        brand = self.current_device_type
+        self.brand_hint.setVisible(brand in ("zte", "dptech"))
+        if brand == "zte":
             self.brand_hint.setText(
                 "中兴 ZXR10 经典 CLI（5200/5900/8900）。"
                 "二层口填 gei_1/1 或 fei_1/1，三层口填 vlan 10。"
@@ -543,6 +554,19 @@ class MainWindow(QMainWindow):
             self.tabs["security"].port_sec_interface.setPlaceholderText("例如: gei_1/1")
             self.tabs["security"].storm_interface.setPlaceholderText("例如: gei_1/1")
             self.tabs["security"].traffic_filter_interface.setPlaceholderText("例如: gei_1/1")
+        elif brand == "dptech":
+            self.brand_hint.setText(
+                "迪普 FW1000 防火墙 CLI（Conplat）。"
+                "业务口填 gige0_1，带外管理口填 meth0_0，三层 VLAN 口填 vlan-if 10。"
+                "点「生成配置」后可在右侧预览，再复制或导出。"
+            )
+            self.tabs["basic"].mgmt_interface.setText("meth0_0")
+            self.tabs["vlan"].interface_input.setPlaceholderText("例如: gige0_1")
+            self.tabs["interface"].trunk_members.setPlaceholderText("成员端口，逗号分隔 例: gige0_5,gige0_6")
+            self.tabs["interface"].rate_interface.setPlaceholderText("接口名，例: gige0_1")
+            self.tabs["security"].port_sec_interface.setPlaceholderText("例如: gige0_1")
+            self.tabs["security"].storm_interface.setPlaceholderText("例如: gige0_1")
+            self.tabs["security"].traffic_filter_interface.setPlaceholderText("例如: gige0_1")
         else:
             self.brand_hint.clear()
             self.tabs["vlan"].interface_input.setPlaceholderText("例如: GigabitEthernet0/0/1")
@@ -727,6 +751,8 @@ class MainWindow(QMainWindow):
         """根据当前品牌生成脚本文本。没有可生成内容时返回空串。"""
         if self.current_device_type == "zte":
             return self._compose_zte_config()
+        if self.current_device_type == "dptech":
+            return self._compose_dptech_config()
 
         all_config = []
         basic_config = self.tabs["basic"].get_config()
@@ -782,10 +808,19 @@ class MainWindow(QMainWindow):
             interface=self.tabs["interface"].collect_config(),
         )
 
+    def _compose_dptech_config(self):
+        return generate_firewall_config(
+            basic=self.tabs["basic"].collect_config(),
+            vlan=self.tabs["vlan"].collect_config(),
+            routing=self.tabs["routing"].collect_config(),
+            security=self.tabs["security"].collect_config(),
+            interface=self.tabs["interface"].collect_config(),
+        )
+
     def generate_config(self):
         try:
             full_config = self.compose_config()
-        except ZTEConfigError as exc:
+        except (ZTEConfigError, DPTechConfigError) as exc:
             QMessageBox.warning(self, "无法生成", str(exc))
             self.statusBar().showMessage(str(exc), 5000)
             return
@@ -804,7 +839,10 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "警告", "请先生成配置！")
             return
         
-        default_name = f"{self.current_device_type}_switch_config.txt"
+        if self.current_device_type == "dptech":
+            default_name = "dptech_fw1000_config.txt"
+        else:
+            default_name = f"{self.current_device_type}_switch_config.txt"
         file_path, _ = QFileDialog.getSaveFileName(
             self, "保存配置文件", default_name,
             "配置文件 (*.txt);;脚本文件 (*.cfg);;所有文件 (*)"

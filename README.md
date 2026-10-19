@@ -1,6 +1,6 @@
 # NetOps Toolkit v4.0 - 网络运维工具集
 
-一个功能强大、现代化界面的**多品牌交换机配置生成工具**，支持**华为/H3C/锐捷/迈普/中兴**，内置**11+网络工具**，基于 Python + PyQt5 开发。
+一个功能强大、现代化界面的**多品牌网络设备配置生成工具**，支持**华为/H3C/锐捷/迈普/中兴交换机**和**迪普 FW1000 防火墙**，内置**11+网络工具**，基于 Python + PyQt5 开发。
 
 ## v4.0 新特性
 
@@ -16,7 +16,8 @@
 - **锐捷 (Ruijie)** - 284条命令 + 10个配置案例
 - **迈普 (Maipu)** - 229条命令 + 8个配置案例
 - **中兴 (ZTE)** - ZXR10 5200/5900/8900 经典 ZXROS 配置生成（基础、VLAN、路由、ACL、聚合）
-- 一键切换设备类型。选择「中兴」后，生成结果使用 ZXR10 命令，而不是华为 `sysname` / `Vlanif`
+- **迪普 (DPtech)** - FW1000 防火墙 Conplat 配置生成（管理口、VLAN、安全域、包过滤、bond）
+- 一键切换设备类型。选择「中兴」后，生成结果使用 ZXR10 命令，而不是华为 `sysname` / `Vlanif`。选择「迪普」后，生成结果使用 `conf-mode`、`gige0_1` 和 `security-policy`
 
 ### 🧰 内置网络工具箱
 - **子网计算器** - IP子网计算、子网划分、IP范围转CIDR
@@ -26,7 +27,7 @@
 - **DNS/Whois** - DNS查询、反向DNS、Whois域名信息
 - **网络信息** - 本机IP、公网IP查询
 - **IP转换** - 十进制/十六进制/二进制转换
-- **配置命令手册** - 华为/H3C配置命令速查、配置案例
+- **配置命令手册** - 华为/H3C/锐捷/迈普/中兴/迪普配置命令速查、配置案例
 - **配置比较工具** - 配置差异对比、华为/H3C命令转换
 - **配置导入导出** - JSON/文本格式导入导出、配置解析
 
@@ -137,6 +138,7 @@ netops_toolkit/
 │   ├── ruijie_config.py     # 锐捷配置生成器
 │   ├── maipu_config.py      # 迈普配置生成器
 │   ├── zte_config.py        # 中兴 ZXR10 配置生成器
+│   ├── dptech_config.py     # 迪普 FW1000 防火墙配置生成器
 │   └── qos_config.py        # QoS配置生成器
 └── utils/
     ├── templates.py         # 配置模板
@@ -145,7 +147,9 @@ netops_toolkit/
     │   ├── huawei_manual.py # 华为命令手册 (248条)
     │   ├── h3c_manual.py    # H3C命令手册 (239条)
     │   ├── ruijie_manual.py # 锐捷命令手册 (284条)
-    │   └── maipu_manual.py  # 迈普命令手册 (229条)
+    │   ├── maipu_manual.py  # 迈普命令手册 (229条)
+    │   ├── zte_manual.py    # 中兴 ZXR10 命令速查
+    │   └── dptech_manual.py # 迪普 FW1000 命令速查
     └── network_tools/       # 网络工具模块
         ├── subnet_calculator.py  # 子网计算器
         ├── ping_tool.py          # Ping工具
@@ -157,7 +161,7 @@ netops_toolkit/
 ## 使用说明
 
 ### 配置生成
-1. 选择设备品牌（华为/H3C/锐捷/迈普/中兴）
+1. 选择设备品牌（华为/H3C/锐捷/迈普/中兴/迪普）
 2. 点击"配置模板"选择预设场景（可选）
 3. 在各标签页填写配置参数
 4. 点击"验证配置"检查参数格式
@@ -177,7 +181,7 @@ netops_toolkit/
 | DNS/Whois | 域名解析、反向查询、域名信息 |
 | 网络信息 | 本机IP、公网IP |
 | IP转换 | 十进制/十六进制/二进制转换 |
-| 配置命令手册 | 华为/H3C命令速查、配置案例 |
+| 配置命令手册 | 华为/H3C/中兴/迪普命令速查、配置案例 |
 | 配置比较工具 | 配置差异对比、华为/H3C命令转换 |
 | 配置导入导出 | JSON/文本导入导出、配置解析 |
 
@@ -210,6 +214,27 @@ netops_toolkit/
 
 这套语法不覆盖 5900E/5960/9900 的 ROSNG（`system-user`、`gei-0/1/1/1`），也不覆盖 C300/C600 OLT。端口安全、PoE、`rate-limit` 在不同子系列上命令名可能不同，脚本里用的是接入/汇聚交换机上较常见的写法。
 
+### 迪普 FW1000
+
+品牌选「迪普 (DPtech)」后点「生成配置」。脚本按 Conplat 输出，适合 FW1000 系列防火墙，不适合 LSW 交换机：
+
+| 配置项 | 迪普 FW1000 |
+|--------|-------------|
+| 进入配置 | `conf-mode` |
+| 系统名 | `sysname` |
+| 管理口 / 业务口 | `interface meth0_0` / `interface gige0_1` |
+| 三层 VLAN | `interface vlan-if 10`，地址写成 `ip address 192.168.10.1/24` |
+| Access/Trunk | `switchport access vlan` / `switchport trunk allowed vlan` |
+| 安全域 | `security-zone Trust` 后把接口加进去 |
+| 包过滤 | `address-object`、`service-object`、`security-policy` |
+| 聚合 | `interface bond 1`，成员口 `bond group 1` |
+| SSH | `ssh enable` |
+| 保存 | `write file` |
+
+界面里如果管理口仍是 `Vlanif1`，生成时会改成 `vlan-if 1`。二层口请手写 `gige0_1`。生成的接口会先放入预定义安全域 Trust，外网口需要改到 Untrust。
+
+OSPF、BGP、RIP、生成树、LLDP、PoE、端口安全和 DHCP Snooping 没有写成可执行命令，脚本里用注释留下界面上的参数。LSW3600/LSW5600 交换机和 ADX 应用交付不在这套语法里。
+
 ## 系统要求
 
 - Python 3.8+
@@ -219,6 +244,7 @@ netops_toolkit/
 ## 更新日志
 
 ### v4.0 (当前版本)
+- 🔥 新增迪普 FW1000 防火墙配置生成（Conplat：安全域、包过滤、bond）
 - 🎨 项目重命名为 NetOps Toolkit
 - 🔄 新增锐捷(Ruijie)和迈普(Maipu)两大品牌支持
 - 📚 命令手册全面扩充: 1000+条命令、35+配置案例
