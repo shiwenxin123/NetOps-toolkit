@@ -7,8 +7,9 @@ NetOps Toolkit - 安全配置标签页
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
                              QLineEdit, QSpinBox, QCheckBox, QGroupBox,
                              QComboBox, QPushButton, QListWidget, QTextEdit,
-                             QMessageBox, QRadioButton, QButtonGroup, QLabel)
-from PyQt5.QtCore import Qt
+                             QMessageBox, QRadioButton, QButtonGroup, QLabel,
+                             QScrollArea, QFrame, QSizePolicy)
+from PyQt5.QtCore import Qt, QTimer
 from modules.security_config import SecurityConfigGenerator
 
 
@@ -23,8 +24,17 @@ class SecurityConfigTab(QWidget):
         self.initUI()
     
     def initUI(self):
-        layout = QHBoxLayout(self)
-        
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+
+        container = QWidget()
+        # Keep the preferred row height (so inputs are not crushed) and let
+        # the scroll area move vertically. Width may shrink with the pane.
+        container.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Minimum)
+        self._form_container = container
+        layout = QHBoxLayout(container)
+
         left_panel = QVBoxLayout()
         
         acl_group = QGroupBox("ACL配置")
@@ -37,58 +47,59 @@ class SecurityConfigTab(QWidget):
         self.acl_number.setValue(3000)
         acl_form.addRow("ACL编号:", self.acl_number)
         
-        self.acl_type_group = QButtonGroup()
+        self.acl_desc = QLineEdit()
+        self.acl_desc.setPlaceholderText("ACL描述(可选)")
+        acl_form.addRow("描述:", self.acl_desc)
+        acl_layout.addLayout(acl_form)
+
+        # Outside the form so the full label fits the group, not the field column.
+        self.acl_type_group = QButtonGroup(self)
         self.acl_std_radio = QRadioButton("标准ACL (2000-2999)")
         self.acl_ext_radio = QRadioButton("扩展ACL (3000-3999)")
         self.acl_ext_radio.setChecked(True)
         self.acl_type_group.addButton(self.acl_std_radio)
         self.acl_type_group.addButton(self.acl_ext_radio)
-        
-        acl_type_layout = QHBoxLayout()
+        acl_type_layout = QVBoxLayout()
+        acl_type_layout.setContentsMargins(4, 2, 4, 2)
+        acl_type_layout.setSpacing(4)
         acl_type_layout.addWidget(self.acl_std_radio)
         acl_type_layout.addWidget(self.acl_ext_radio)
-        acl_form.addRow("类型:", acl_type_layout)
-        
-        self.acl_desc = QLineEdit()
-        self.acl_desc.setPlaceholderText("ACL描述(可选)")
-        acl_form.addRow("描述:", self.acl_desc)
-        
+        acl_layout.addLayout(acl_type_layout)
+
         rule_form = QFormLayout()
-        
         self.rule_id = QSpinBox()
         self.rule_id.setRange(1, 65535)
         self.rule_id.setValue(5)
-        acl_form.addRow("规则ID:", self.rule_id)
+        rule_form.addRow("规则ID:", self.rule_id)
         
         self.rule_action_combo = QComboBox()
         self.rule_action_combo.addItems(["permit", "deny"])
-        acl_form.addRow("动作:", self.rule_action_combo)
+        rule_form.addRow("动作:", self.rule_action_combo)
         
         self.rule_protocol = QComboBox()
         self.rule_protocol.addItems(["ip", "tcp", "udp", "icmp"])
-        acl_form.addRow("协议:", self.rule_protocol)
+        rule_form.addRow("协议:", self.rule_protocol)
         
         self.rule_source = QLineEdit()
         self.rule_source.setPlaceholderText("例如: 192.168.1.0")
-        acl_form.addRow("源地址:", self.rule_source)
+        rule_form.addRow("源地址:", self.rule_source)
         
         self.rule_src_wildcard = QLineEdit()
         self.rule_src_wildcard.setPlaceholderText("反掩码 例如: 0.0.0.255")
-        acl_form.addRow("源反掩码:", self.rule_src_wildcard)
+        rule_form.addRow("源反掩码:", self.rule_src_wildcard)
         
         self.rule_dest = QLineEdit()
         self.rule_dest.setPlaceholderText("目标地址")
-        acl_form.addRow("目标地址:", self.rule_dest)
+        rule_form.addRow("目标地址:", self.rule_dest)
         
         self.rule_dst_wildcard = QLineEdit()
         self.rule_dst_wildcard.setPlaceholderText("反掩码")
-        acl_form.addRow("目标反掩码:", self.rule_dst_wildcard)
+        rule_form.addRow("目标反掩码:", self.rule_dst_wildcard)
         
         self.rule_port = QLineEdit()
         self.rule_port.setPlaceholderText("端口号(仅TCP/UDP)")
-        acl_form.addRow("端口:", self.rule_port)
-        
-        acl_layout.addLayout(acl_form)
+        rule_form.addRow("端口:", self.rule_port)
+        acl_layout.addLayout(rule_form)
         
         add_acl_btn = QPushButton("添加ACL规则")
         add_acl_btn.clicked.connect(self.add_acl_rule)
@@ -149,7 +160,8 @@ class SecurityConfigTab(QWidget):
         left_panel.addWidget(port_sec_group)
         
         left_panel.addStretch()
-        layout.addLayout(left_panel, 1)
+        # ACL labels are wider than the right-hand groups.
+        layout.addLayout(left_panel, 3)
         
         right_panel = QVBoxLayout()
         
@@ -225,8 +237,31 @@ class SecurityConfigTab(QWidget):
         right_panel.addWidget(anti_group)
         
         right_panel.addStretch()
-        layout.addLayout(right_panel, 1)
-    
+        layout.addLayout(right_panel, 2)
+
+        scroll.setWidget(container)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(scroll)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        QTimer.singleShot(0, self._lock_form_height)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._lock_form_height()
+
+    def _lock_form_height(self):
+        """Stop the scroll area from squeezing rows once styles are applied."""
+        content = getattr(self, "_form_container", None)
+        if content is None or content.layout() is None:
+            return
+        preferred = content.layout().sizeHint().height()
+        if preferred > content.minimumHeight():
+            content.setMinimumHeight(preferred)
+
     def add_acl_rule(self):
         acl_num = self.acl_number.value()
         

@@ -6,8 +6,9 @@ NetOps Toolkit - 路由配置标签页
 
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QFormLayout,
                              QLineEdit, QSpinBox, QCheckBox, QGroupBox,
-                             QComboBox, QPushButton, QListWidget, QMessageBox, QLabel)
-from PyQt5.QtCore import Qt
+                             QComboBox, QPushButton, QListWidget, QMessageBox, QLabel,
+                             QScrollArea, QFrame, QSizePolicy)
+from PyQt5.QtCore import Qt, QTimer
 from modules.routing_config import RoutingConfigGenerator
 
 
@@ -22,8 +23,17 @@ class RoutingConfigTab(QWidget):
         self.initUI()
     
     def initUI(self):
-        layout = QHBoxLayout(self)
-        
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+
+        container = QWidget()
+        # Keep the preferred row height (so inputs are not crushed) and let
+        # the scroll area move vertically. Width may shrink with the pane.
+        container.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Minimum)
+        self._form_container = container
+        layout = QHBoxLayout(container)
+
         left_panel = QVBoxLayout()
         
         static_group = QGroupBox("静态路由/默认路由")
@@ -196,7 +206,30 @@ class RoutingConfigTab(QWidget):
         
         right_panel.addStretch()
         layout.addLayout(right_panel, 1)
-    
+
+        scroll.setWidget(container)
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(scroll)
+
+    def showEvent(self, event):
+        super().showEvent(event)
+        QTimer.singleShot(0, self._lock_form_height)
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._lock_form_height()
+
+    def _lock_form_height(self):
+        """Stop the scroll area from squeezing rows once styles are applied."""
+        content = getattr(self, "_form_container", None)
+        if content is None or content.layout() is None:
+            return
+        preferred = content.layout().sizeHint().height()
+        if preferred > content.minimumHeight():
+            content.setMinimumHeight(preferred)
+
     def add_static_route(self):
         dest = self.route_dest.text().strip()
         mask = self.route_mask.text().strip()
