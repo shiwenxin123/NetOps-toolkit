@@ -346,7 +346,7 @@ class RoutingConfigTab(QWidget):
             self.bgp_network_list.takeItem(row)
             del self.bgp_networks[row]
     
-    def get_config(self):
+    def collect_config(self):
         config = {}
         
         if self.static_routes:
@@ -375,6 +375,10 @@ class RoutingConfigTab(QWidget):
                 "networks": rip_nets.split()
             }
         
+        return config
+    
+    def get_config(self):
+        config = self.collect_config()
         if config:
             return RoutingConfigGenerator.generate_route_all(config)
         return ""

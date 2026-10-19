@@ -353,7 +353,7 @@ class InterfaceConfigTab(QWidget):
             self.rate_list.takeItem(row)
             del self.rate_limits[row]
     
-    def get_config(self):
+    def collect_config(self):
         config = {}
         
         if self.eth_trunks:
@@ -386,6 +386,10 @@ class InterfaceConfigTab(QWidget):
         if self.rate_limits:
             config["rate_limits"] = self.rate_limits
         
+        return config
+    
+    def get_config(self):
+        config = self.collect_config()
         if config:
             return InterfaceConfigGenerator.generate_interface_all(config)
         return ""

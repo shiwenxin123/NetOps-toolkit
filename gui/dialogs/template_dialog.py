@@ -54,7 +54,9 @@ class TemplateManagerDialog(QDialog):
         
         filter_layout.addWidget(QLabel("设备类型:"))
         self.device_combo = QComboBox()
-        self.device_combo.addItems(["全部", "华为", "H3C"])
+        self.device_combo.addItems(["全部", "华为", "H3C", "锐捷", "迈普", "中兴"])
+        preset = {"huawei": 1, "h3c": 2, "ruijie": 3, "maipu": 4, "zte": 5}.get(device_type, 0)
+        self.device_combo.setCurrentIndex(preset)
         self.device_combo.currentIndexChanged.connect(self.on_device_filter_changed)
         filter_layout.addWidget(self.device_combo)
         
@@ -227,7 +229,13 @@ class TemplateManagerDialog(QDialog):
         
         device_type = None
         if self.device_combo.currentText() != "全部":
-            device_map = {"华为": "huawei", "H3C": "h3c"}
+            device_map = {
+                "华为": "huawei",
+                "H3C": "h3c",
+                "锐捷": "ruijie",
+                "迈普": "maipu",
+                "中兴": "zte",
+            }
             device_type = device_map.get(self.device_combo.currentText())
         
         keyword = self.search_input.text().strip()
@@ -243,6 +251,8 @@ class TemplateManagerDialog(QDialog):
             
             if template.device_type == "huawei":
                 item.setForeground(Qt.darkBlue)
+            elif template.device_type == "zte":
+                item.setForeground(Qt.darkRed)
             else:
                 item.setForeground(Qt.darkGreen)
             
@@ -265,7 +275,16 @@ class TemplateManagerDialog(QDialog):
         
         if self.current_template:
             self.name_input.setText(self.current_template.name)
-            self.device_label.setText("华为" if self.current_template.device_type == "huawei" else "H3C")
+            device_names = {
+                "huawei": "华为",
+                "h3c": "H3C",
+                "ruijie": "锐捷",
+                "maipu": "迈普",
+                "zte": "中兴",
+            }
+            self.device_label.setText(
+                device_names.get(self.current_template.device_type, self.current_template.device_type)
+            )
             self.desc_input.setPlainText(self.current_template.description)
             self.tags_label.setText(", ".join(self.current_template.tags))
             

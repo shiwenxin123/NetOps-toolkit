@@ -15,6 +15,7 @@ from utils.manual.huawei_manual import HUAWEI_COMMANDS, HUAWEI_CASES
 from utils.manual.h3c_manual import H3C_COMMANDS, H3C_CASES
 from utils.manual.ruijie_manual import RUIJIE_COMMANDS, RUIJIE_CASES
 from utils.manual.maipu_manual import MAIPU_COMMANDS, MAIPU_CASES
+from utils.manual.zte_manual import ZTE_COMMANDS, ZTE_CASES
 from gui.tool_styles import (
     TOOL_LABEL_STYLE, TOOL_LABEL_SECONDARY,
     TOOL_BUTTON_PRIMARY, TOOL_BUTTON_GHOST,
@@ -54,7 +55,8 @@ class ManualToolWidget(QWidget):
             "🔷 华为 (Huawei)", 
             "🔶 H3C / 华三",
             "🔷 锐捷",
-            "🔷 迈普"
+            "🔷 迈普",
+            "🔷 中兴 (ZTE)"
         ])
         self.device_combo.currentIndexChanged.connect(self.on_device_changed)
         header.addWidget(self.device_combo)
@@ -190,7 +192,8 @@ class ManualToolWidget(QWidget):
             "huawei": HUAWEI_COMMANDS,
             "h3c": H3C_COMMANDS,
             "ruijie": RUIJIE_COMMANDS,
-            "maipu": MAIPU_COMMANDS
+            "maipu": MAIPU_COMMANDS,
+            "zte": ZTE_COMMANDS
         }
         commands = commands_map.get(device_type, HUAWEI_COMMANDS)
         
@@ -238,9 +241,11 @@ class ManualToolWidget(QWidget):
             "huawei": HUAWEI_CASES,
             "h3c": H3C_CASES,
             "ruijie": RUIJIE_CASES,
-            "maipu": MAIPU_CASES
+            "maipu": MAIPU_CASES,
+            "zte": ZTE_CASES
         }
         cases = cases_map.get(device_type, HUAWEI_CASES)
+        self.current_cases = cases
         
         self.case_combo.clear()
         for case in cases:
@@ -251,8 +256,8 @@ class ManualToolWidget(QWidget):
     
     def on_device_changed(self, index):
         """设备类型切换"""
-        device_types = ["huawei", "h3c", "ruijie", "maipu"]
-        device_names = ["华为", "H3C", "锐捷", "迈普"]
+        device_types = ["huawei", "h3c", "ruijie", "maipu", "zte"]
+        device_names = ["华为", "H3C", "锐捷", "迈普", "中兴"]
         
         self.current_device = device_types[index]
         self.load_commands(self.current_device)
@@ -307,13 +312,16 @@ class ManualToolWidget(QWidget):
     
     def on_case_changed(self, index):
         """案例选择变化"""
-        cases = HUAWEI_CASES if self.current_device == "huawei" else H3C_CASES
+        cases = getattr(self, "current_cases", [])
         
         if 0 <= index < len(cases):
             case = cases[index]
             self.case_title.setText(f"📋 {case['title']}")
             self.case_desc.setText(case['description'])
-            self.case_text.setPlainText(case['config'])
+            body = case.get("config")
+            if not body:
+                body = "\n".join(case.get("steps") or [])
+            self.case_text.setPlainText(body)
     
     def copy_case(self):
         """复制案例配置"""
