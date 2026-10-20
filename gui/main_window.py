@@ -23,16 +23,18 @@ from utils.templates import get_template_names, get_template_config
 from utils.validator import ConfigValidator
 from modules.zte_config import ZTEConfigError, generate_switch_config
 from modules.dptech_config import DPTechConfigError, generate_firewall_config
+from modules.dptech_lsw_config import generate_lsw_config
 
 
-DEVICE_TYPES = ["huawei", "h3c", "ruijie", "maipu", "zte", "dptech"]
+DEVICE_TYPES = ["huawei", "h3c", "ruijie", "maipu", "zte", "dptech", "dptech-lsw"]
 DEVICE_CHOICES = [
     ("huawei", "华为 (Huawei)"),
     ("h3c", "华三 (H3C)"),
     ("ruijie", "锐捷 (Ruijie)"),
     ("maipu", "迈普 (Maipu)"),
     ("zte", "中兴 (ZTE)"),
-    ("dptech", "迪普 (DPtech)"),
+    ("dptech", "迪普 FW1000 (防火墙)"),
+    ("dptech-lsw", "迪普 LSW (交换机)"),
 ]
 DEVICE_TITLES = {
     "huawei": ("华为交换机配置脚本生成工具", "华为", "华为交换机配置脚本"),
@@ -41,6 +43,7 @@ DEVICE_TITLES = {
     "maipu": ("迈普交换机配置脚本生成工具", "迈普", "迈普交换机配置脚本"),
     "zte": ("中兴交换机配置脚本生成工具", "中兴", "中兴ZXR10交换机配置脚本"),
     "dptech": ("迪普防火墙配置脚本生成工具", "迪普", "迪普FW1000防火墙配置脚本"),
+    "dptech-lsw": ("迪普LSW交换机配置脚本生成工具", "迪普LSW", "迪普LSW交换机配置脚本"),
 }
 
 
@@ -490,9 +493,13 @@ class MainWindow(QMainWindow):
         apply_zte_action.triggered.connect(lambda: self.quick_apply_template("zte"))
         template_menu.addAction(apply_zte_action)
 
-        apply_dptech_action = QAction("应用迪普模板", self)
+        apply_dptech_action = QAction("应用迪普 FW1000 模板", self)
         apply_dptech_action.triggered.connect(lambda: self.quick_apply_template("dptech"))
         template_menu.addAction(apply_dptech_action)
+
+        apply_dptech_lsw_action = QAction("应用迪普 LSW 模板", self)
+        apply_dptech_lsw_action.triggered.connect(lambda: self.quick_apply_template("dptech-lsw"))
+        template_menu.addAction(apply_dptech_lsw_action)
         
         template_menu.addSeparator()
         
@@ -532,7 +539,11 @@ class MainWindow(QMainWindow):
             )
         elif self.current_device_type == "dptech":
             self.statusBar().showMessage(
-                "已切换到迪普模式。接口使用 gige0_1 或 meth0_0，三层 VLAN 口使用 vlan-if 10", 8000
+                "已切换到迪普防火墙模式。接口使用 gige0_1 或 meth0_0，三层 VLAN 口使用 vlan-if 10", 8000
+            )
+        elif self.current_device_type == "dptech-lsw":
+            self.statusBar().showMessage(
+                "已切换到迪普 LSW 模式。接口使用 gige0_1 或 tengige0_1，三层 VLAN 口使用 vlan-if 10", 8000
             )
         else:
             self.statusBar().showMessage(f"已切换到{name}模式", 3000)
@@ -540,7 +551,7 @@ class MainWindow(QMainWindow):
     def _apply_brand_field_hints(self):
         """中兴和迪普使用自己的接口名，避免沿用华为的 Vlanif 示例。"""
         brand = self.current_device_type
-        self.brand_hint.setVisible(brand in ("zte", "dptech"))
+        self.brand_hint.setVisible(brand in ("zte", "dptech", "dptech-lsw"))
         if brand == "zte":
             self.brand_hint.setText(
                 "中兴 ZXR10 经典 CLI（5200/5900/8900）。"
@@ -563,6 +574,19 @@ class MainWindow(QMainWindow):
             self.tabs["basic"].mgmt_interface.setText("meth0_0")
             self.tabs["vlan"].interface_input.setPlaceholderText("例如: gige0_1")
             self.tabs["interface"].trunk_members.setPlaceholderText("成员端口，逗号分隔 例: gige0_5,gige0_6")
+            self.tabs["interface"].rate_interface.setPlaceholderText("接口名，例: gige0_1")
+            self.tabs["security"].port_sec_interface.setPlaceholderText("例如: gige0_1")
+            self.tabs["security"].storm_interface.setPlaceholderText("例如: gige0_1")
+            self.tabs["security"].traffic_filter_interface.setPlaceholderText("例如: gige0_1")
+        elif brand == "dptech-lsw":
+            self.brand_hint.setText(
+                "迪普 LSW3600/LSW5600 交换机 CLI（Conplat），不是 FW1000 防火墙。"
+                "二层口填 gige0_1，万兆口填 tengige0_1，三层 VLAN 口填 vlan-if 10。"
+                "点「生成配置」后得到 VLAN、Access/Trunk、SSH 和 bond 聚合。"
+            )
+            self.tabs["basic"].mgmt_interface.setText("vlan-if 1")
+            self.tabs["vlan"].interface_input.setPlaceholderText("例如: gige0_1 或 tengige0_1")
+            self.tabs["interface"].trunk_members.setPlaceholderText("成员端口，逗号分隔 例: gige0_23,gige0_24")
             self.tabs["interface"].rate_interface.setPlaceholderText("接口名，例: gige0_1")
             self.tabs["security"].port_sec_interface.setPlaceholderText("例如: gige0_1")
             self.tabs["security"].storm_interface.setPlaceholderText("例如: gige0_1")
@@ -753,6 +777,8 @@ class MainWindow(QMainWindow):
             return self._compose_zte_config()
         if self.current_device_type == "dptech":
             return self._compose_dptech_config()
+        if self.current_device_type == "dptech-lsw":
+            return self._compose_dptech_lsw_config()
 
         all_config = []
         basic_config = self.tabs["basic"].get_config()
@@ -817,6 +843,15 @@ class MainWindow(QMainWindow):
             interface=self.tabs["interface"].collect_config(),
         )
 
+    def _compose_dptech_lsw_config(self):
+        return generate_lsw_config(
+            basic=self.tabs["basic"].collect_config(),
+            vlan=self.tabs["vlan"].collect_config(),
+            routing=self.tabs["routing"].collect_config(),
+            security=self.tabs["security"].collect_config(),
+            interface=self.tabs["interface"].collect_config(),
+        )
+
     def generate_config(self):
         try:
             full_config = self.compose_config()
@@ -841,6 +876,8 @@ class MainWindow(QMainWindow):
         
         if self.current_device_type == "dptech":
             default_name = "dptech_fw1000_config.txt"
+        elif self.current_device_type == "dptech-lsw":
+            default_name = "dptech_lsw_config.txt"
         else:
             default_name = f"{self.current_device_type}_switch_config.txt"
         file_path, _ = QFileDialog.getSaveFileName(

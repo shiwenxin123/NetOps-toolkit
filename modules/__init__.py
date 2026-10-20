@@ -12,6 +12,7 @@ from .interface_config import InterfaceConfigGenerator
 from .qos_config import QoSConfigGenerator
 from .zte_config import ZTEConfigError, generate_switch_config
 from .dptech_config import DPTechConfigError, generate_firewall_config
+from .dptech_lsw_config import DPTechLSWConfigError, generate_lsw_config
 
 __all__ = [
     "BasicConfigGenerator",
@@ -24,4 +25,6 @@ __all__ = [
     "generate_switch_config",
     "DPTechConfigError",
     "generate_firewall_config",
+    "DPTechLSWConfigError",
+    "generate_lsw_config",
 ]

@@ -456,8 +456,10 @@ class InterfaceConfigTab(QWidget):
         
         if "eth_trunks" in config:
             self.eth_trunks = config["eth_trunks"].copy()
+            self.trunk_list.clear()
             for trunk in self.eth_trunks:
-                self.trunk_list.addItem(f"Eth-Trunk{trunk['id']}: {trunk.get('mode', '')}")
+                trunk_id = trunk.get("trunk_id", trunk.get("id", ""))
+                self.trunk_list.addItem(f"Eth-Trunk{trunk_id}: {trunk.get('mode', '')}")
         
         if "poe_interfaces" in config:
             self.poe_interfaces = config["poe_interfaces"].copy()

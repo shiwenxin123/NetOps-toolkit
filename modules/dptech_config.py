@@ -15,7 +15,7 @@ FW1000 维护手册、现场配置也使用同一套写法：
 - 保存是 write file
 
 不覆盖，也不编造这些产品的命令：
-- LSW3600 / LSW5600 等交换机（公开资料没有可核对的 CLI）
+- LSW3600 / LSW5600 交换机。交换机脚本在 modules/dptech_lsw_config.py
 - ADX 应用交付、只支持 Web 的旧版本
 - OSPF / BGP / RIP 的进程写法、生成树、LLDP、PoE、端口安全、DHCP Snooping
 
