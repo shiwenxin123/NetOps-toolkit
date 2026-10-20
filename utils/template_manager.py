@@ -337,6 +337,69 @@ class TemplateManager:
         }
     }
 
+    BUILTIN_DPTECH_LSW_TEMPLATES = {
+        "接入交换机基础配置": {
+            "description": "迪普 LSW 接入示例：vlan-if 管理地址、SSH、Access 口和三层 VLAN",
+            "config": {
+                "basic": {
+                    "hostname": "DP-LSW-01",
+                    "user": {"username": "admin", "password": "Admin@123", "level": 15},
+                    "mgmt_interface": {
+                        "interface": "vlan-if 1",
+                        "ip_address": "192.168.1.1",
+                        "mask": "255.255.255.0",
+                        "gateway": "192.168.1.254"
+                    },
+                    "enable_ssh": True
+                },
+                "vlan": {
+                    "vlans": [{"id": 10, "name": "Office"}],
+                    "interfaces": [
+                        {"interface": "gige0_1", "type": "access", "vlan_id": 10}
+                    ],
+                    "vlanifs": [{
+                        "vlan_id": 10,
+                        "ip_address": "192.168.10.1",
+                        "mask": "255.255.255.0",
+                        "description": "Office-GW"
+                    }]
+                }
+            }
+        },
+        "汇聚链路聚合": {
+            "description": "迪普 LSW 上联：bond 动态聚合，Trunk 放行两个 VLAN",
+            "config": {
+                "basic": {
+                    "hostname": "DP-LSW-Agg",
+                    "user": {"username": "netops", "password": "Netops1", "level": 15},
+                    "enable_ssh": True
+                },
+                "vlan": {
+                    "vlans": [{"id": 10, "name": "Office"}, {"id": 20, "name": "Server"}],
+                    "interfaces": [
+                        {"interface": "gige0_1", "type": "access", "vlan_id": 10},
+                        {
+                            "interface": "gige0_2",
+                            "type": "trunk",
+                            "trunk_vlans": [10, 20],
+                            "pvid": 1
+                        }
+                    ]
+                },
+                "interface": {
+                    "eth_trunks": [{
+                        "trunk_id": 1,
+                        "mode": "lacp-dynamic",
+                        "description": "uplink",
+                        "member_ports": ["gige0_23", "gige0_24"],
+                        "port_link_type": "trunk",
+                        "trunk_vlans": [10, 20]
+                    }]
+                }
+            }
+        }
+    }
+
     def __init__(self, templates_dir: str = None):
         if templates_dir is None:
             templates_dir = os.path.join(os.path.dirname(__file__), "..", "templates")
@@ -416,6 +479,17 @@ class TemplateManager:
             )
             template.is_builtin = True
             self.templates[f"dptech_{name}"] = template
+
+        for name, data in self.BUILTIN_DPTECH_LSW_TEMPLATES.items():
+            template = Template(
+                name=name,
+                device_type="dptech-lsw",
+                description=data["description"],
+                config=data["config"],
+                tags=["内置", "迪普", "LSW"]
+            )
+            template.is_builtin = True
+            self.templates[f"dptech-lsw_{name}"] = template
     
     def _load_custom_templates(self):
         if os.path.exists(self.custom_templates_file):
