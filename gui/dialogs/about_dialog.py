@@ -88,7 +88,7 @@ class AboutDialog(QDialog):
         features_text.setHtml("""
 <h4 style='color: #1976D2;'>🎯 核心功能</h4>
 <ul style='line-height: 1.8;'>
-<li>支持华为/H3C/锐捷/迈普/中兴/迪普 FW1000/迪普 LSW 配置生成</li>
+<li>支持华为/H3C/锐捷/迈普/中兴/中兴 ROSNG/迪普 FW1000/迪普 LSW 配置生成</li>
 <li>配置模板快速应用</li>
 <li>配置导入导出与比较</li>
 <li>命令速查手册</li>
