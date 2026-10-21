@@ -9,7 +9,7 @@ router ospf/bgp、smartgroup、spanning-tree、lldp、ssh server enable。
 
 不覆盖：
 - 5900E / 5960 / 9900 的 ROSNG（见 zte_rosng_config.py：system-user、gei-0/1/1/1、switchvlan-configuration）
-- C300 / C600 等 OLT
+- C300 / C600 等 OLT（见 zte_olt_config.py）
 
 界面里的 VlanifN / Vlan-interfaceN 会写成 interface vlan N。
 用户输入只做单行拼接，拒绝换行和控制字符，避免一条字段变成多条命令。
@@ -659,7 +659,7 @@ def generate_switch_config(basic=None, vlan=None, routing=None, security=None, i
         "! 中兴 ZXR10 交换机配置脚本",
         f"! 生成时间: {timestamp}",
         "! 命令风格: 经典 ZXROS（5200/5900/8900）。请在特权模式 ZXR10# 下粘贴。",
-        "! 不适用于 5900E/5960/9900 的 ROSNG（请改用品牌「中兴 ROSNG」），也不适用于 C300/C600 OLT。",
+        "! 不适用于 5900E/5960/9900 的 ROSNG（请改用品牌「中兴 ROSNG」），也不适用于 C300/C600 OLT（请改用品牌「中兴 OLT」）。",
         "! 接口示例: gei_1/1、fei_1/1。三层口写作 interface vlan 10。",
         "! 管理口如果仍填写 VlanifN 或 Vlan-interfaceN，生成时会改成 vlan N。",
         "!",

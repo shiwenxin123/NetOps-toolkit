@@ -23,11 +23,12 @@ from utils.templates import get_template_names, get_template_config
 from utils.validator import ConfigValidator
 from modules.zte_config import ZTEConfigError, generate_switch_config
 from modules.zte_rosng_config import generate_rosng_config
+from modules.zte_olt_config import generate_olt_config
 from modules.dptech_config import DPTechConfigError, generate_firewall_config
 from modules.dptech_lsw_config import generate_lsw_config
 
 
-DEVICE_TYPES = ["huawei", "h3c", "ruijie", "maipu", "zte", "dptech", "dptech-lsw", "zte-rosng"]
+DEVICE_TYPES = ["huawei", "h3c", "ruijie", "maipu", "zte", "dptech", "dptech-lsw", "zte-rosng", "zte-olt"]
 DEVICE_CHOICES = [
     ("huawei", "华为 (Huawei)"),
     ("h3c", "华三 (H3C)"),
@@ -37,6 +38,7 @@ DEVICE_CHOICES = [
     ("dptech", "迪普 FW1000 (防火墙)"),
     ("dptech-lsw", "迪普 LSW (交换机)"),
     ("zte-rosng", "中兴 ROSNG (5960/9900)"),
+    ("zte-olt", "中兴 OLT (C300/C600)"),
 ]
 DEVICE_TITLES = {
     "huawei": ("华为交换机配置脚本生成工具", "华为", "华为交换机配置脚本"),
@@ -47,6 +49,7 @@ DEVICE_TITLES = {
     "dptech": ("迪普防火墙配置脚本生成工具", "迪普", "迪普FW1000防火墙配置脚本"),
     "dptech-lsw": ("迪普LSW交换机配置脚本生成工具", "迪普LSW", "迪普LSW交换机配置脚本"),
     "zte-rosng": ("中兴ROSNG交换机配置脚本生成工具", "中兴ROSNG", "中兴ZXR10 ROSNG交换机配置脚本"),
+    "zte-olt": ("中兴OLT配置脚本生成工具", "中兴OLT", "中兴ZXA10 OLT配置脚本"),
 }
 
 
@@ -507,6 +510,10 @@ class MainWindow(QMainWindow):
         apply_rosng_action = QAction("应用中兴 ROSNG 模板", self)
         apply_rosng_action.triggered.connect(lambda: self.quick_apply_template("zte-rosng"))
         template_menu.addAction(apply_rosng_action)
+
+        apply_olt_action = QAction("应用中兴 OLT 模板", self)
+        apply_olt_action.triggered.connect(lambda: self.quick_apply_template("zte-olt"))
+        template_menu.addAction(apply_olt_action)
         
         template_menu.addSeparator()
         
@@ -556,13 +563,17 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(
                 "已切换到中兴 ROSNG 模式。接口使用 gei-0/1/1/1 或 xgei-0/1/1/1，三层口使用 vlan10", 8000
             )
+        elif self.current_device_type == "zte-olt":
+            self.statusBar().showMessage(
+                "已切换到中兴 OLT 模式。C300 用 gei_1/19/1 和 gpon-olt_1/1/1，C600 用 xgei-1/1/1 和 gpon_olt-1/1/1", 8000
+            )
         else:
             self.statusBar().showMessage(f"已切换到{name}模式", 3000)
 
     def _apply_brand_field_hints(self):
         """中兴和迪普使用自己的接口名，避免沿用华为的 Vlanif 示例。"""
         brand = self.current_device_type
-        self.brand_hint.setVisible(brand in ("zte", "dptech", "dptech-lsw", "zte-rosng"))
+        self.brand_hint.setVisible(brand in ("zte", "dptech", "dptech-lsw", "zte-rosng", "zte-olt"))
         if brand == "zte":
             self.brand_hint.setText(
                 "中兴 ZXR10 经典 CLI（5200/5900/8900）。"
@@ -616,6 +627,20 @@ class MainWindow(QMainWindow):
             self.tabs["security"].port_sec_interface.setPlaceholderText("例如: gei-0/1/1/1")
             self.tabs["security"].storm_interface.setPlaceholderText("例如: gei-0/1/1/1")
             self.tabs["security"].traffic_filter_interface.setPlaceholderText("例如: gei-0/1/1/1")
+        elif brand == "zte-olt":
+            self.brand_hint.setText(
+                "中兴 OLT（ZXA10 C300/C320 与 C600），不是 ZXROS，也不是 ROSNG。"
+                "C300 上联填 gei_1/19/1 或 xgei_1/10/1，PON 填 gpon-olt_1/1/1，带外管理填 vlan mng1。"
+                "C600 上联填 xgei-1/1/1，PON 填 gpon_olt-1/1/1，带外管理填 mgmt_eth。"
+                "点「生成配置」得到主机名、管理地址、VLAN、SSH 和静态路由。ONU 注册只写在注释里。"
+            )
+            self.tabs["basic"].mgmt_interface.setText("vlan mng1")
+            self.tabs["vlan"].interface_input.setPlaceholderText("例如: gei_1/19/1、xgei-1/1/1 或 gpon-olt_1/1/1")
+            self.tabs["interface"].trunk_members.setPlaceholderText("成员端口，逗号分隔 例: gei_1/19/1,gei_1/19/2")
+            self.tabs["interface"].rate_interface.setPlaceholderText("接口名，例: gei_1/19/1")
+            self.tabs["security"].port_sec_interface.setPlaceholderText("例如: gei_1/19/1")
+            self.tabs["security"].storm_interface.setPlaceholderText("例如: gei_1/19/1")
+            self.tabs["security"].traffic_filter_interface.setPlaceholderText("例如: gei_1/19/1")
         else:
             self.brand_hint.clear()
             self.tabs["vlan"].interface_input.setPlaceholderText("例如: GigabitEthernet0/0/1")
@@ -806,6 +831,8 @@ class MainWindow(QMainWindow):
             return self._compose_dptech_lsw_config()
         if self.current_device_type == "zte-rosng":
             return self._compose_rosng_config()
+        if self.current_device_type == "zte-olt":
+            return self._compose_olt_config()
 
         all_config = []
         basic_config = self.tabs["basic"].get_config()
@@ -886,6 +913,22 @@ class MainWindow(QMainWindow):
             interface=self.tabs["interface"].collect_config(),
         )
 
+    def _compose_olt_config(self):
+        vlan_tab = self.tabs["vlan"]
+        vlan_cfg = vlan_tab.collect_config()
+        vlan_cfg["stp"] = {
+            "mode": vlan_tab.stp_mode_combo.currentText(),
+            "priority": vlan_tab.stp_priority.value(),
+            "enable": vlan_tab.stp_enable.isChecked(),
+        }
+        return generate_olt_config(
+            basic=self.tabs["basic"].collect_config(),
+            vlan=vlan_cfg,
+            routing=self.tabs["routing"].collect_config(),
+            security=self.tabs["security"].collect_config(),
+            interface=self.tabs["interface"].collect_config(),
+        )
+
     def _compose_dptech_lsw_config(self):
         return generate_lsw_config(
             basic=self.tabs["basic"].collect_config(),
@@ -921,6 +964,8 @@ class MainWindow(QMainWindow):
             default_name = "dptech_fw1000_config.txt"
         elif self.current_device_type == "dptech-lsw":
             default_name = "dptech_lsw_config.txt"
+        elif self.current_device_type == "zte-olt":
+            default_name = "zte_olt_config.txt"
         else:
             default_name = f"{self.current_device_type}_switch_config.txt"
         file_path, _ = QFileDialog.getSaveFileName(

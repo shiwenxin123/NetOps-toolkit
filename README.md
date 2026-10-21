@@ -1,6 +1,6 @@
 # NetOps Toolkit v4.0 - 网络运维工具集
 
-一个功能强大、现代化界面的**多品牌网络设备配置生成工具**，支持**华为/H3C/锐捷/迈普/中兴交换机**、**中兴 ROSNG**和**迪普 FW1000 防火墙**，内置**11+网络工具**，基于 Python + PyQt5 开发。
+一个功能强大、现代化界面的**多品牌网络设备配置生成工具**，支持**华为/H3C/锐捷/迈普/中兴交换机**、**中兴 ROSNG**、**中兴 OLT**和**迪普 FW1000 防火墙**，内置**11+网络工具**，基于 Python + PyQt5 开发。
 
 ## v4.0 新特性
 
@@ -17,9 +17,10 @@
 - **迈普 (Maipu)** - 229条命令 + 8个配置案例
 - **中兴 (ZTE)** - ZXR10 5200/5900/8900 经典 ZXROS 配置生成（基础、VLAN、路由、ACL、聚合）
 - **中兴 ROSNG** - ZXR10 5960/9900 新一代 ROSNG 配置生成（VLAN、Access/Trunk、SSH、smartgroup、静态路由）
+- **中兴 OLT** - ZXA10 C300/C320 与 C600 配置生成（主机名、管理地址、上联 VLAN、SSH、静态路由；ONU 注册只留注释）
 - **迪普 FW1000 (DPtech)** - 防火墙 Conplat 配置生成（管理口、VLAN、安全域、包过滤、bond）
 - **迪普 LSW (DPtech)** - LSW3600/LSW5600 交换机 Conplat 配置生成（VLAN、Access/Trunk、SSH、bond）
-- 一键切换设备类型。选择「中兴」后，生成结果使用经典 ZXROS。选择「中兴 ROSNG」后，生成结果使用 `switchvlan-configuration`、`system-user` 和 `gei-0/1/1/1`。选择「迪普 FW1000」后，生成结果使用 `conf-mode`、`gige0_1` 和 `security-policy`。选择「迪普 LSW」后，生成结果是交换机脚本：`switchport`、`ssh enable`、`bond`，没有安全策略
+- 一键切换设备类型。选择「中兴」后，生成结果使用经典 ZXROS。选择「中兴 ROSNG」后，生成结果使用 `switchvlan-configuration`、`system-user` 和 `gei-0/1/1/1`。选择「迪普 FW1000」后，生成结果使用 `conf-mode`、`gige0_1` 和 `security-policy`。选择「迪普 LSW」后，生成结果是交换机脚本：`switchport`、`ssh enable`、`bond`，没有安全策略。选择「中兴 OLT (C300/C600)」后，生成结果是 ZXAN 脚本：`hostname`、`interface vlan mng1` 或 `interface vlan100`、`switchport vlan ... tag`。C300 与 C600 的接口名不要混在一份脚本里
 
 ### 🧰 内置网络工具箱
 - **子网计算器** - IP子网计算、子网划分、IP范围转CIDR
@@ -29,7 +30,7 @@
 - **DNS/Whois** - DNS查询、反向DNS、Whois域名信息
 - **网络信息** - 本机IP、公网IP查询
 - **IP转换** - 十进制/十六进制/二进制转换
-- **配置命令手册** - 华为/H3C/锐捷/迈普/中兴/中兴 ROSNG/迪普 FW1000/迪普 LSW 配置命令速查、配置案例
+- **配置命令手册** - 华为/H3C/锐捷/迈普/中兴/中兴 ROSNG/中兴 OLT/迪普 FW1000/迪普 LSW 配置命令速查、配置案例
 - **配置比较工具** - 配置差异对比、华为/H3C命令转换
 - **配置导入导出** - JSON/文本格式导入导出、配置解析
 
@@ -141,6 +142,7 @@ netops_toolkit/
 │   ├── maipu_config.py      # 迈普配置生成器
 │   ├── zte_config.py        # 中兴 ZXR10 经典 ZXROS 配置生成器
 │   ├── zte_rosng_config.py  # 中兴 ZXR10 ROSNG 配置生成器
+│   ├── zte_olt_config.py    # 中兴 ZXA10 C300/C600 OLT 配置生成器
 │   ├── dptech_config.py     # 迪普 FW1000 防火墙配置生成器
 │   ├── dptech_lsw_config.py # 迪普 LSW 交换机配置生成器
 │   └── qos_config.py        # QoS配置生成器
@@ -154,6 +156,7 @@ netops_toolkit/
     │   ├── maipu_manual.py  # 迈普命令手册 (229条)
     │   ├── zte_manual.py    # 中兴 ZXR10 经典 ZXROS 命令速查
     │   ├── zte_rosng_manual.py # 中兴 ZXR10 ROSNG 命令速查
+    │   ├── zte_olt_manual.py # 中兴 ZXA10 C300/C600 OLT 命令速查
     │   ├── dptech_manual.py # 迪普 FW1000 命令速查
     │   └── dptech_lsw_manual.py # 迪普 LSW 命令速查
     └── network_tools/       # 网络工具模块
@@ -167,7 +170,7 @@ netops_toolkit/
 ## 使用说明
 
 ### 配置生成
-1. 选择设备品牌（华为/H3C/锐捷/迈普/中兴/中兴 ROSNG/迪普 FW1000/迪普 LSW）
+1. 选择设备品牌（华为/H3C/锐捷/迈普/中兴/中兴 ROSNG/中兴 OLT/迪普 FW1000/迪普 LSW）
 2. 点击"配置模板"选择预设场景（可选）
 3. 在各标签页填写配置参数
 4. 点击"验证配置"检查参数格式
@@ -187,7 +190,7 @@ netops_toolkit/
 | DNS/Whois | 域名解析、反向查询、域名信息 |
 | 网络信息 | 本机IP、公网IP |
 | IP转换 | 十进制/十六进制/二进制转换 |
-| 配置命令手册 | 华为/H3C/中兴/中兴 ROSNG/迪普 FW1000/迪普 LSW 命令速查、配置案例 |
+| 配置命令手册 | 华为/H3C/中兴/中兴 ROSNG/中兴 OLT/迪普 FW1000/迪普 LSW 命令速查、配置案例 |
 | 配置比较工具 | 配置差异对比、华为/H3C命令转换 |
 | 配置导入导出 | JSON/文本导入导出、配置解析 |
 
@@ -218,7 +221,7 @@ netops_toolkit/
 
 界面里如果管理口仍是 `Vlanif1`，生成时会改成 `vlan 1`。二层口请手写 `gei_1/1` 或 `fei_1/1`。
 
-这套语法不覆盖 5900E/5960/9900 的 ROSNG（`system-user`、`gei-0/1/1/1`）。5960/9900 请改选「中兴 ROSNG (5960/9900)」。也不覆盖 C300/C600 OLT。端口安全、PoE、`rate-limit` 在不同子系列上命令名可能不同，脚本里用的是接入/汇聚交换机上较常见的写法。
+这套语法不覆盖 5900E/5960/9900 的 ROSNG（`system-user`、`gei-0/1/1/1`）。5960/9900 请改选「中兴 ROSNG (5960/9900)」。也不覆盖 C300/C600 OLT，请改选「中兴 OLT (C300/C600)」。端口安全、PoE、`rate-limit` 在不同子系列上命令名可能不同，脚本里用的是接入/汇聚交换机上较常见的写法。
 
 ### 中兴 ROSNG
 
@@ -239,6 +242,32 @@ netops_toolkit/
 二层口填 `gei-0/1/1/1`，万兆口填 `xgei-0/1/1/1`。界面里的 `Vlanif1` 会改成 `vlan1`。命令手册里选「中兴 ROSNG」可以对照同一套写法。
 
 OSPF、BGP、RIP、生成树、ACL、LLDP、PoE 和端口安全没有写成可执行命令，脚本里用注释留下界面上的参数。VLAN 名称和接口描述同样只留注释。模板里的 `Placeholder1` 是占位口令，下发前请改掉。
+
+### 中兴 OLT（C300/C600）
+
+品牌选「中兴 OLT (C300/C600)」后点「生成配置」。脚本按 ZXAN 输出，适合 ZXA10 C300/C320 和 C600。经典 ZXROS 和 ROSNG 都不覆盖这两款 OLT。命令只采用公开手册里能对上的写法：
+
+| 配置项 | 中兴 OLT |
+|--------|----------|
+| 进入配置 | `configure terminal`，结束用 `end` |
+| 主机名 | `hostname` |
+| 特权口令 | `enable secret 0 <明文>`。明文 3 到 16 位。密文不写，手册写明 `enable secret 5` 只在加载配置文件时使用 |
+| SSH | `ssh server enable`、`ssh server version 2`、`ssh server authentication mode local`、`ssh server authentication type pap` |
+| C300 带外管理 | `interface vlan mng1`，地址 `ip address 10.200.0.2 255.255.255.0` |
+| C300 三层 VLAN | `interface vlan 10`。界面里的 `Vlanif10` 会改成这种写法 |
+| C600 带外管理 | `interface mgmt_eth` |
+| C600 三层 VLAN | `interface vlan100`（中间没有空格） |
+| 上联 VLAN | `switchport mode trunk` 或 `hybrid`，然后 `switchport vlan 100 tag`。上联口不能配 access，界面的 Access 改写成 `switchport default vlan` |
+| C300 接口名 | 上联 `gei_1/19/1`、`xgei_1/10/1`，PON `gpon-olt_1/1/1` |
+| C600 接口名 | 上联 `xgei-1/1/1`，PON `gpon_olt-1/1/1`。C600 上联和 PON 口会写 `no shutdown` |
+| 静态路由 | `ip route 198.51.100.0 255.255.255.0 10.1.1.254` |
+| 保存 | 注释里的 `write`。脚本不会登录设备，也不会自动保存 |
+
+一份脚本里不要混用两套接口名。只填了 `Vlanif` 或 `vlan 10`、没有上联口时，按 C300 的 `interface vlan 10` 生成，文件头会说明 C600 的差别。
+
+ONU 注册没有写成可执行命令。界面没有 ONU 类型、SN 和 LOID。脚本在 PON 口下用注释保留手册示例：`onu <编号> type <类型> sn <SN>`（C300 命令手册 1.13；C600 另有 `loid`）。`service-port` 需要 vport 和 user-vlan，同样只留注释。
+
+本地用户、聚合、OSPF、BGP、RIP、生成树、ACL、NTP、SNMP、LLDP 和 PoE 没有写成可执行命令。C300 和 C600 的用户、聚合命令不一样，所以不猜。模板里的 `LabOnly1` 和 `Placeholder1` 是占位符，下发前请改掉。命令手册里选「中兴 OLT」可以对照同一套写法。
 
 ### 迪普 FW1000
 
@@ -289,6 +318,7 @@ LSW3600-24GT4GP-LI 的彩页没有三层路由；入门型号如果拒绝 `route
 ## 更新日志
 
 ### v4.0 (当前版本)
+- 🔥 新增中兴 ZXA10 C300/C600 OLT 配置生成（管理地址、上联 VLAN、SSH、静态路由；ONU 注册只留注释）
 - 🔥 新增中兴 ZXR10 ROSNG 配置生成（5960/9900：VLAN、SSH、smartgroup、静态路由）
 - 🔥 新增迪普 LSW3600/LSW5600 交换机配置生成（Conplat：VLAN、SSH、bond）
 - 🔥 新增迪普 FW1000 防火墙配置生成（Conplat：安全域、包过滤、bond）
