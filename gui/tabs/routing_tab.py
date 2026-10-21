@@ -428,7 +428,9 @@ class RoutingConfigTab(QWidget):
         if "static_routes" in config:
             self.static_routes = config["static_routes"].copy()
             for route in self.static_routes:
-                self.route_list.addItem(f"{route['dest']}/{route['mask']} -> {route['nexthop']}")
+                dest = route.get("dest_network") or route.get("dest", "")
+                nexthop = route.get("next_hop") or route.get("nexthop") or route.get("interface", "")
+                self.route_list.addItem(f"{dest}/{route.get('mask', '')} -> {nexthop}")
         
         if "ospf_networks" in config:
             self.ospf_networks = config["ospf_networks"].copy()

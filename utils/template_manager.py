@@ -270,6 +270,73 @@ class TemplateManager:
         }
     }
 
+    BUILTIN_ZTE_ROSNG_TEMPLATES = {
+        "接入交换机基础配置": {
+            "description": "中兴 ZXR10 ROSNG 接入示例（5960/9900）。口令 Placeholder1 是占位符，下发前请修改。接口名为 gei-0/1/1/x",
+            "config": {
+                "basic": {
+                    "hostname": "ZTE-ROSNG-01",
+                    "user": {"username": "netops", "password": "Placeholder1", "level": 15},
+                    "mgmt_interface": {
+                        "interface": "vlan1",
+                        "ip_address": "192.168.1.1",
+                        "mask": "255.255.255.0",
+                        "gateway": "192.168.1.254"
+                    },
+                    "enable_ssh": True
+                },
+                "vlan": {
+                    "vlans": [{"id": 10, "name": "Office"}],
+                    "interfaces": [
+                        {"interface": "gei-0/1/1/1", "type": "access", "vlan_id": 10},
+                        {
+                            "interface": "gei-0/1/1/24",
+                            "type": "trunk",
+                            "trunk_vlans": [10, 20],
+                            "pvid": 1
+                        }
+                    ],
+                    "vlanifs": [{
+                        "vlan_id": 10,
+                        "ip_address": "192.168.10.1",
+                        "mask": "255.255.255.0",
+                        "description": "Office-GW"
+                    }]
+                }
+            }
+        },
+        "上联聚合与静态路由": {
+            "description": "中兴 ZXR10 ROSNG 上联：smartgroup 按 802.3ad 写出，并带一条文档地址段的静态路由。口令 Placeholder1 是占位符",
+            "config": {
+                "basic": {
+                    "hostname": "ZTE-ROSNG-Agg",
+                    "user": {"username": "netops", "password": "Placeholder1", "level": 15},
+                    "enable_ssh": True
+                },
+                "vlan": {
+                    "vlans": [{"id": 10, "name": "Office"}, {"id": 20, "name": "Server"}]
+                },
+                "routing": {
+                    "static_routes": [{
+                        "dest_network": "198.51.100.0",
+                        "mask": "255.255.255.0",
+                        "next_hop": "192.0.2.1"
+                    }]
+                },
+                "interface": {
+                    "eth_trunks": [{
+                        "trunk_id": 1,
+                        "mode": "lacp-static",
+                        "description": "uplink",
+                        "member_ports": ["gei-0/1/1/23", "gei-0/1/1/24"],
+                        "port_link_type": "trunk",
+                        "trunk_vlans": [10, 20]
+                    }]
+                }
+            }
+        }
+    }
+
     BUILTIN_DPTECH_TEMPLATES = {
         "三层防火墙基础配置": {
             "description": "迪普 FW1000 带外管理示例：meth0_0、SSH、管理员和默认路由",
@@ -468,6 +535,17 @@ class TemplateManager:
             )
             template.is_builtin = True
             self.templates[f"zte_{name}"] = template
+
+        for name, data in self.BUILTIN_ZTE_ROSNG_TEMPLATES.items():
+            template = Template(
+                name=name,
+                device_type="zte-rosng",
+                description=data["description"],
+                config=data["config"],
+                tags=["内置", "中兴", "ROSNG"]
+            )
+            template.is_builtin = True
+            self.templates[f"zte-rosng_{name}"] = template
 
         for name, data in self.BUILTIN_DPTECH_TEMPLATES.items():
             template = Template(

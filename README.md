@@ -1,6 +1,6 @@
 # NetOps Toolkit v4.0 - 网络运维工具集
 
-一个功能强大、现代化界面的**多品牌网络设备配置生成工具**，支持**华为/H3C/锐捷/迈普/中兴交换机**和**迪普 FW1000 防火墙**，内置**11+网络工具**，基于 Python + PyQt5 开发。
+一个功能强大、现代化界面的**多品牌网络设备配置生成工具**，支持**华为/H3C/锐捷/迈普/中兴交换机**、**中兴 ROSNG**和**迪普 FW1000 防火墙**，内置**11+网络工具**，基于 Python + PyQt5 开发。
 
 ## v4.0 新特性
 
@@ -16,9 +16,10 @@
 - **锐捷 (Ruijie)** - 284条命令 + 10个配置案例
 - **迈普 (Maipu)** - 229条命令 + 8个配置案例
 - **中兴 (ZTE)** - ZXR10 5200/5900/8900 经典 ZXROS 配置生成（基础、VLAN、路由、ACL、聚合）
+- **中兴 ROSNG** - ZXR10 5960/9900 新一代 ROSNG 配置生成（VLAN、Access/Trunk、SSH、smartgroup、静态路由）
 - **迪普 FW1000 (DPtech)** - 防火墙 Conplat 配置生成（管理口、VLAN、安全域、包过滤、bond）
 - **迪普 LSW (DPtech)** - LSW3600/LSW5600 交换机 Conplat 配置生成（VLAN、Access/Trunk、SSH、bond）
-- 一键切换设备类型。选择「中兴」后，生成结果使用 ZXR10 命令，而不是华为 `sysname` / `Vlanif`。选择「迪普 FW1000」后，生成结果使用 `conf-mode`、`gige0_1` 和 `security-policy`。选择「迪普 LSW」后，生成结果是交换机脚本：`switchport`、`ssh enable`、`bond`，没有安全策略
+- 一键切换设备类型。选择「中兴」后，生成结果使用经典 ZXROS。选择「中兴 ROSNG」后，生成结果使用 `switchvlan-configuration`、`system-user` 和 `gei-0/1/1/1`。选择「迪普 FW1000」后，生成结果使用 `conf-mode`、`gige0_1` 和 `security-policy`。选择「迪普 LSW」后，生成结果是交换机脚本：`switchport`、`ssh enable`、`bond`，没有安全策略
 
 ### 🧰 内置网络工具箱
 - **子网计算器** - IP子网计算、子网划分、IP范围转CIDR
@@ -28,7 +29,7 @@
 - **DNS/Whois** - DNS查询、反向DNS、Whois域名信息
 - **网络信息** - 本机IP、公网IP查询
 - **IP转换** - 十进制/十六进制/二进制转换
-- **配置命令手册** - 华为/H3C/锐捷/迈普/中兴/迪普 FW1000/迪普 LSW 配置命令速查、配置案例
+- **配置命令手册** - 华为/H3C/锐捷/迈普/中兴/中兴 ROSNG/迪普 FW1000/迪普 LSW 配置命令速查、配置案例
 - **配置比较工具** - 配置差异对比、华为/H3C命令转换
 - **配置导入导出** - JSON/文本格式导入导出、配置解析
 
@@ -138,7 +139,8 @@ netops_toolkit/
 │   ├── h3c_config.py        # H3C配置生成器
 │   ├── ruijie_config.py     # 锐捷配置生成器
 │   ├── maipu_config.py      # 迈普配置生成器
-│   ├── zte_config.py        # 中兴 ZXR10 配置生成器
+│   ├── zte_config.py        # 中兴 ZXR10 经典 ZXROS 配置生成器
+│   ├── zte_rosng_config.py  # 中兴 ZXR10 ROSNG 配置生成器
 │   ├── dptech_config.py     # 迪普 FW1000 防火墙配置生成器
 │   ├── dptech_lsw_config.py # 迪普 LSW 交换机配置生成器
 │   └── qos_config.py        # QoS配置生成器
@@ -150,7 +152,8 @@ netops_toolkit/
     │   ├── h3c_manual.py    # H3C命令手册 (239条)
     │   ├── ruijie_manual.py # 锐捷命令手册 (284条)
     │   ├── maipu_manual.py  # 迈普命令手册 (229条)
-    │   ├── zte_manual.py    # 中兴 ZXR10 命令速查
+    │   ├── zte_manual.py    # 中兴 ZXR10 经典 ZXROS 命令速查
+    │   ├── zte_rosng_manual.py # 中兴 ZXR10 ROSNG 命令速查
     │   ├── dptech_manual.py # 迪普 FW1000 命令速查
     │   └── dptech_lsw_manual.py # 迪普 LSW 命令速查
     └── network_tools/       # 网络工具模块
@@ -164,7 +167,7 @@ netops_toolkit/
 ## 使用说明
 
 ### 配置生成
-1. 选择设备品牌（华为/H3C/锐捷/迈普/中兴/迪普 FW1000/迪普 LSW）
+1. 选择设备品牌（华为/H3C/锐捷/迈普/中兴/中兴 ROSNG/迪普 FW1000/迪普 LSW）
 2. 点击"配置模板"选择预设场景（可选）
 3. 在各标签页填写配置参数
 4. 点击"验证配置"检查参数格式
@@ -184,7 +187,7 @@ netops_toolkit/
 | DNS/Whois | 域名解析、反向查询、域名信息 |
 | 网络信息 | 本机IP、公网IP |
 | IP转换 | 十进制/十六进制/二进制转换 |
-| 配置命令手册 | 华为/H3C/中兴/迪普 FW1000/迪普 LSW 命令速查、配置案例 |
+| 配置命令手册 | 华为/H3C/中兴/中兴 ROSNG/迪普 FW1000/迪普 LSW 命令速查、配置案例 |
 | 配置比较工具 | 配置差异对比、华为/H3C命令转换 |
 | 配置导入导出 | JSON/文本导入导出、配置解析 |
 
@@ -215,7 +218,27 @@ netops_toolkit/
 
 界面里如果管理口仍是 `Vlanif1`，生成时会改成 `vlan 1`。二层口请手写 `gei_1/1` 或 `fei_1/1`。
 
-这套语法不覆盖 5900E/5960/9900 的 ROSNG（`system-user`、`gei-0/1/1/1`），也不覆盖 C300/C600 OLT。端口安全、PoE、`rate-limit` 在不同子系列上命令名可能不同，脚本里用的是接入/汇聚交换机上较常见的写法。
+这套语法不覆盖 5900E/5960/9900 的 ROSNG（`system-user`、`gei-0/1/1/1`）。5960/9900 请改选「中兴 ROSNG (5960/9900)」。也不覆盖 C300/C600 OLT。端口安全、PoE、`rate-limit` 在不同子系列上命令名可能不同，脚本里用的是接入/汇聚交换机上较常见的写法。
+
+### 中兴 ROSNG
+
+品牌选「中兴 ROSNG (5960/9900)」后点「生成配置」。脚本按 ROSNG 输出，适合 ZXR10 5960/9900 这一类新一代交换机。命令依据是 ZXR10 5900E V3.00.11 公开配置手册里已经核对过的写法：
+
+| 配置项 | 中兴 ROSNG |
+|--------|------------|
+| 进入配置 | `configure terminal`，结束用 `end` |
+| 主机名 | `hostname` |
+| 登录用户 | `system-user` 里的 `user-name` / `password`，并绑定本地 AAA 模板 |
+| SSH | `ssh server enable`。监听端口只接受 22 或 49152-65535 |
+| 三层 VLAN | `interface vlan10`，地址写成 `ip address 192.168.10.1 255.255.255.0` |
+| Access/Trunk | 写在 `switchvlan-configuration` 里：`switchport access vlan` / `switchport trunk vlan` |
+| 聚合 | `interface smartgroup1`，`lacp mode 802.3ad` 或 `lacp mode on`，成员口 `smartgroup 1 mode active` |
+| 静态路由 | `ip route 198.51.100.0 255.255.255.0 192.0.2.1` |
+| 保存 | 注释里的 `write`。脚本不会登录设备，也不会自动保存 |
+
+二层口填 `gei-0/1/1/1`，万兆口填 `xgei-0/1/1/1`。界面里的 `Vlanif1` 会改成 `vlan1`。命令手册里选「中兴 ROSNG」可以对照同一套写法。
+
+OSPF、BGP、RIP、生成树、ACL、LLDP、PoE 和端口安全没有写成可执行命令，脚本里用注释留下界面上的参数。VLAN 名称和接口描述同样只留注释。模板里的 `Placeholder1` 是占位口令，下发前请改掉。
 
 ### 迪普 FW1000
 
@@ -266,6 +289,7 @@ LSW3600-24GT4GP-LI 的彩页没有三层路由；入门型号如果拒绝 `route
 ## 更新日志
 
 ### v4.0 (当前版本)
+- 🔥 新增中兴 ZXR10 ROSNG 配置生成（5960/9900：VLAN、SSH、smartgroup、静态路由）
 - 🔥 新增迪普 LSW3600/LSW5600 交换机配置生成（Conplat：VLAN、SSH、bond）
 - 🔥 新增迪普 FW1000 防火墙配置生成（Conplat：安全域、包过滤、bond）
 - 🎨 项目重命名为 NetOps Toolkit
