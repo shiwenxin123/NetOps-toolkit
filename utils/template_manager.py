@@ -337,6 +337,74 @@ class TemplateManager:
         }
     }
 
+    BUILTIN_ZTE_OLT_TEMPLATES = {
+        "C300 带外管理与上联": {
+            "description": "中兴 C300/C320 OLT：带外口 vlan mng1，上联 gei_1/19/1 放行 VLAN 100。口令 LabOnly1 是占位符。PON 口上的 ONU 注册只留注释",
+            "config": {
+                "basic": {
+                    "hostname": "OLT-C300",
+                    "password": {"value": "LabOnly1", "encrypted": False},
+                    "user": {"username": "netops", "password": "Placeholder1", "level": 15},
+                    "mgmt_interface": {
+                        "interface": "vlan mng1",
+                        "ip_address": "10.200.0.2",
+                        "mask": "255.255.255.0",
+                        "gateway": "10.200.0.1"
+                    },
+                    "enable_ssh": True
+                },
+                "vlan": {
+                    "vlans": [{"id": 100, "name": "Uplink"}],
+                    "interfaces": [
+                        {
+                            "interface": "gei_1/19/1",
+                            "type": "trunk",
+                            "trunk_vlans": [100],
+                            "pvid": 1
+                        },
+                        {"interface": "gpon-olt_1/1/1", "type": "access", "vlan_id": 100}
+                    ]
+                }
+            }
+        },
+        "C600 带内管理与PON口": {
+            "description": "中兴 C600 OLT：三层口 interface vlan100，上联 xgei-1/1/1，PON gpon_olt-1/1/1。不要和 C300 的下划线接口名混用",
+            "config": {
+                "basic": {
+                    "hostname": "OLT-C600",
+                    "user": {"username": "netops", "password": "Placeholder1", "level": 15},
+                    "mgmt_interface": {
+                        "interface": "vlan 100",
+                        "ip_address": "10.1.1.1",
+                        "mask": "255.255.255.0",
+                        "gateway": "10.1.1.254"
+                    },
+                    "enable_ssh": True
+                },
+                "vlan": {
+                    "vlans": [{"id": 100, "name": "NM"}],
+                    "interfaces": [
+                        {
+                            "interface": "xgei-1/1/1",
+                            "type": "trunk",
+                            "trunk_vlans": [100],
+                            "pvid": 1
+                        },
+                        {"interface": "gpon_olt-1/1/1", "type": "access", "vlan_id": 100}
+                    ]
+                },
+                "routing": {
+                    "static_routes": [{
+                        "dest_network": "198.51.100.0",
+                        "mask": "255.255.255.0",
+                        "next_hop": "10.1.1.254",
+                        "preference": 60
+                    }]
+                }
+            }
+        }
+    }
+
     BUILTIN_DPTECH_TEMPLATES = {
         "三层防火墙基础配置": {
             "description": "迪普 FW1000 带外管理示例：meth0_0、SSH、管理员和默认路由",
@@ -546,6 +614,17 @@ class TemplateManager:
             )
             template.is_builtin = True
             self.templates[f"zte-rosng_{name}"] = template
+
+        for name, data in self.BUILTIN_ZTE_OLT_TEMPLATES.items():
+            template = Template(
+                name=name,
+                device_type="zte-olt",
+                description=data["description"],
+                config=data["config"],
+                tags=["内置", "中兴", "OLT"]
+            )
+            template.is_builtin = True
+            self.templates[f"zte-olt_{name}"] = template
 
         for name, data in self.BUILTIN_DPTECH_TEMPLATES.items():
             template = Template(

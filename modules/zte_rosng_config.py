@@ -937,7 +937,7 @@ def generate_rosng_config(basic=None, vlan=None, routing=None, security=None, in
         "! 命令依据: ZXR10 5900E V3.00.11 配置手册（Basic / Link Layer / Security / IPv4 Routing）。",
         "! 接口示例: gei-0/1/1/1、xgei-0/1/1/1。三层口写作 interface vlan10。",
         "! 管理口如果仍填写 VlanifN 或 vlan 10，生成时会改成 vlan10。",
-        "! 不是经典 ZXROS，没有 gei_1/1，也不适用于 C300/C600 OLT。",
+        "! 不是经典 ZXROS，没有 gei_1/1。C300/C600 OLT 请改用品牌「中兴 OLT」。",
         "! 核对不到的语法只写在 ! 注释里，不会猜一条命令。",
         "! 生成结果只是文本，不会下发到设备。",
         "!",
