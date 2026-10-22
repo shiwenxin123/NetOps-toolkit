@@ -26,9 +26,10 @@ from modules.zte_rosng_config import generate_rosng_config
 from modules.zte_olt_config import generate_olt_config
 from modules.dptech_config import DPTechConfigError, generate_firewall_config
 from modules.dptech_lsw_config import generate_lsw_config
+from modules.h3c_lb_config import H3CLBConfigError, generate_lb_config
 
 
-DEVICE_TYPES = ["huawei", "h3c", "ruijie", "maipu", "zte", "dptech", "dptech-lsw", "zte-rosng", "zte-olt"]
+DEVICE_TYPES = ["huawei", "h3c", "ruijie", "maipu", "zte", "dptech", "dptech-lsw", "zte-rosng", "zte-olt", "h3c-lb"]
 DEVICE_CHOICES = [
     ("huawei", "华为 (Huawei)"),
     ("h3c", "华三 (H3C)"),
@@ -39,6 +40,7 @@ DEVICE_CHOICES = [
     ("dptech-lsw", "迪普 LSW (交换机)"),
     ("zte-rosng", "中兴 ROSNG (5960/9900)"),
     ("zte-olt", "中兴 OLT (C300/C600)"),
+    ("h3c-lb", "华三负载均衡 (SecPath)"),
 ]
 DEVICE_TITLES = {
     "huawei": ("华为交换机配置脚本生成工具", "华为", "华为交换机配置脚本"),
@@ -50,6 +52,7 @@ DEVICE_TITLES = {
     "dptech-lsw": ("迪普LSW交换机配置脚本生成工具", "迪普LSW", "迪普LSW交换机配置脚本"),
     "zte-rosng": ("中兴ROSNG交换机配置脚本生成工具", "中兴ROSNG", "中兴ZXR10 ROSNG交换机配置脚本"),
     "zte-olt": ("中兴OLT配置脚本生成工具", "中兴OLT", "中兴ZXA10 OLT配置脚本"),
+    "h3c-lb": ("华三负载均衡配置脚本生成工具", "华三负载均衡", "华三SecPath负载均衡配置脚本"),
 }
 
 
@@ -514,6 +517,10 @@ class MainWindow(QMainWindow):
         apply_olt_action = QAction("应用中兴 OLT 模板", self)
         apply_olt_action.triggered.connect(lambda: self.quick_apply_template("zte-olt"))
         template_menu.addAction(apply_olt_action)
+
+        apply_h3c_lb_action = QAction("应用华三负载均衡模板", self)
+        apply_h3c_lb_action.triggered.connect(lambda: self.quick_apply_template("h3c-lb"))
+        template_menu.addAction(apply_h3c_lb_action)
         
         template_menu.addSeparator()
         
@@ -567,13 +574,18 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(
                 "已切换到中兴 OLT 模式。C300 用 gei_1/19/1 和 gpon-olt_1/1/1，C600 用 xgei-1/1/1 和 gpon_olt-1/1/1", 8000
             )
+        elif self.current_device_type == "h3c-lb":
+            self.statusBar().showMessage(
+                "已切换到华三负载均衡。接口填 GigabitEthernet1/0/1，实服务器和虚服务器在「路由配置」页", 8000
+            )
         else:
             self.statusBar().showMessage(f"已切换到{name}模式", 3000)
 
     def _apply_brand_field_hints(self):
         """中兴和迪普使用自己的接口名，避免沿用华为的 Vlanif 示例。"""
         brand = self.current_device_type
-        self.brand_hint.setVisible(brand in ("zte", "dptech", "dptech-lsw", "zte-rosng", "zte-olt"))
+        self.tabs["routing"].set_slb_visible(brand == "h3c-lb")
+        self.brand_hint.setVisible(brand in ("zte", "dptech", "dptech-lsw", "zte-rosng", "zte-olt", "h3c-lb"))
         if brand == "zte":
             self.brand_hint.setText(
                 "中兴 ZXR10 经典 CLI（5200/5900/8900）。"
@@ -641,6 +653,20 @@ class MainWindow(QMainWindow):
             self.tabs["security"].port_sec_interface.setPlaceholderText("例如: gei_1/19/1")
             self.tabs["security"].storm_interface.setPlaceholderText("例如: gei_1/19/1")
             self.tabs["security"].traffic_filter_interface.setPlaceholderText("例如: gei_1/19/1")
+        elif brand == "h3c-lb":
+            self.brand_hint.setText(
+                "华三 SecPath 服务器负载均衡（Comware），不是交换机，也不是迪普 ADX。"
+                "接口填 GigabitEthernet1/0/1 或 Route-Aggregation1。"
+                "到「路由配置」填写实服务器、虚服务器和调度算法，点「生成配置」得到 system-view 脚本。"
+                "以 # 开头的行是说明，粘贴到命令行时请跳过。"
+            )
+            self.tabs["basic"].mgmt_interface.setText("GigabitEthernet1/0/1")
+            self.tabs["vlan"].interface_input.setPlaceholderText("例如: GigabitEthernet1/0/2")
+            self.tabs["interface"].trunk_members.setPlaceholderText("成员端口，逗号分隔 例: GigabitEthernet1/0/3,GigabitEthernet1/0/4")
+            self.tabs["interface"].rate_interface.setPlaceholderText("接口名，例: GigabitEthernet1/0/1")
+            self.tabs["security"].port_sec_interface.setPlaceholderText("例如: GigabitEthernet1/0/1")
+            self.tabs["security"].storm_interface.setPlaceholderText("例如: GigabitEthernet1/0/1")
+            self.tabs["security"].traffic_filter_interface.setPlaceholderText("例如: GigabitEthernet1/0/1")
         else:
             self.brand_hint.clear()
             self.tabs["vlan"].interface_input.setPlaceholderText("例如: GigabitEthernet0/0/1")
@@ -833,6 +859,8 @@ class MainWindow(QMainWindow):
             return self._compose_rosng_config()
         if self.current_device_type == "zte-olt":
             return self._compose_olt_config()
+        if self.current_device_type == "h3c-lb":
+            return self._compose_h3c_lb_config()
 
         all_config = []
         basic_config = self.tabs["basic"].get_config()
@@ -929,6 +957,15 @@ class MainWindow(QMainWindow):
             interface=self.tabs["interface"].collect_config(),
         )
 
+    def _compose_h3c_lb_config(self):
+        return generate_lb_config(
+            basic=self.tabs["basic"].collect_config(),
+            vlan=self.tabs["vlan"].collect_config(),
+            routing=self.tabs["routing"].collect_config(),
+            security=self.tabs["security"].collect_config(),
+            interface=self.tabs["interface"].collect_config(),
+        )
+
     def _compose_dptech_lsw_config(self):
         return generate_lsw_config(
             basic=self.tabs["basic"].collect_config(),
@@ -941,7 +978,7 @@ class MainWindow(QMainWindow):
     def generate_config(self):
         try:
             full_config = self.compose_config()
-        except (ZTEConfigError, DPTechConfigError) as exc:
+        except (ZTEConfigError, DPTechConfigError, H3CLBConfigError) as exc:
             QMessageBox.warning(self, "无法生成", str(exc))
             self.statusBar().showMessage(str(exc), 5000)
             return
@@ -966,6 +1003,8 @@ class MainWindow(QMainWindow):
             default_name = "dptech_lsw_config.txt"
         elif self.current_device_type == "zte-olt":
             default_name = "zte_olt_config.txt"
+        elif self.current_device_type == "h3c-lb":
+            default_name = "h3c_lb_config.txt"
         else:
             default_name = f"{self.current_device_type}_switch_config.txt"
         file_path, _ = QFileDialog.getSaveFileName(

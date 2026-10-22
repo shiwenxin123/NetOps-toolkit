@@ -20,6 +20,8 @@ class RoutingConfigTab(QWidget):
         self.static_routes = []
         self.ospf_networks = []
         self.bgp_peers = []
+        self.real_servers = []
+        self.virtual_servers = []
         self.initUI()
     
     def initUI(self):
@@ -128,7 +130,78 @@ class RoutingConfigTab(QWidget):
         layout.addLayout(left_panel, 1)
         
         right_panel = QVBoxLayout()
-        
+
+        slb_group = QGroupBox("服务器负载均衡（华三 SecPath）")
+        self.slb_group = slb_group
+        slb_group.setVisible(False)
+        slb_layout = QVBoxLayout()
+        slb_form = QFormLayout()
+        self.slb_farm = QLineEdit("web")
+        self.slb_farm.setPlaceholderText("实服务组名称，例如 web")
+        slb_form.addRow("实服务组:", self.slb_farm)
+        self.slb_predictor = QComboBox()
+        self.slb_predictor.addItems([
+            "round-robin", "random", "least-connection", "hash-source", "hash-destination"
+        ])
+        slb_form.addRow("调度算法:", self.slb_predictor)
+        slb_layout.addLayout(slb_form)
+        self.slb_icmp = QCheckBox("ICMP 健康检查（nqa template icmp）")
+        self.slb_icmp.setChecked(True)
+        slb_layout.addWidget(self.slb_icmp)
+
+        rs_form = QFormLayout()
+        self.slb_rs_name = QLineEdit()
+        self.slb_rs_name.setPlaceholderText("例如: rs1")
+        rs_form.addRow("实服务器:", self.slb_rs_name)
+        self.slb_rs_ip = QLineEdit()
+        self.slb_rs_ip.setPlaceholderText("例如: 192.168.10.11")
+        rs_form.addRow("地址:", self.slb_rs_ip)
+        self.slb_rs_port = QSpinBox()
+        self.slb_rs_port.setRange(0, 65535)
+        self.slb_rs_port.setValue(80)
+        rs_form.addRow("端口:", self.slb_rs_port)
+        self.slb_rs_weight = QSpinBox()
+        self.slb_rs_weight.setRange(1, 255)
+        self.slb_rs_weight.setValue(100)
+        rs_form.addRow("权值:", self.slb_rs_weight)
+        slb_layout.addLayout(rs_form)
+        add_rs_btn = QPushButton("添加实服务器")
+        add_rs_btn.clicked.connect(self.add_real_server)
+        slb_layout.addWidget(add_rs_btn)
+        self.slb_rs_list = QListWidget()
+        self.slb_rs_list.setMaximumHeight(80)
+        slb_layout.addWidget(self.slb_rs_list)
+        del_rs_btn = QPushButton("删除选中实服务器")
+        del_rs_btn.clicked.connect(self.del_real_server)
+        slb_layout.addWidget(del_rs_btn)
+
+        vs_form = QFormLayout()
+        self.slb_vs_name = QLineEdit()
+        self.slb_vs_name.setPlaceholderText("例如: vs-web")
+        vs_form.addRow("虚服务器:", self.slb_vs_name)
+        self.slb_vs_type = QComboBox()
+        self.slb_vs_type.addItems(["tcp", "http", "udp", "ip"])
+        vs_form.addRow("类型:", self.slb_vs_type)
+        self.slb_vs_ip = QLineEdit()
+        self.slb_vs_ip.setPlaceholderText("例如: 192.168.1.80")
+        vs_form.addRow("虚地址:", self.slb_vs_ip)
+        self.slb_vs_port = QSpinBox()
+        self.slb_vs_port.setRange(0, 65535)
+        self.slb_vs_port.setValue(80)
+        vs_form.addRow("虚端口:", self.slb_vs_port)
+        slb_layout.addLayout(vs_form)
+        add_vs_btn = QPushButton("添加虚服务器")
+        add_vs_btn.clicked.connect(self.add_virtual_server)
+        slb_layout.addWidget(add_vs_btn)
+        self.slb_vs_list = QListWidget()
+        self.slb_vs_list.setMaximumHeight(70)
+        slb_layout.addWidget(self.slb_vs_list)
+        del_vs_btn = QPushButton("删除选中虚服务器")
+        del_vs_btn.clicked.connect(self.del_virtual_server)
+        slb_layout.addWidget(del_vs_btn)
+        slb_group.setLayout(slb_layout)
+        right_panel.addWidget(slb_group)
+
         bgp_group = QGroupBox("BGP配置")
         bgp_layout = QVBoxLayout()
         
@@ -374,6 +447,10 @@ class RoutingConfigTab(QWidget):
                 "version": self.rip_version.value(),
                 "networks": rip_nets.split()
             }
+
+        slb = self._slb_payload()
+        if slb:
+            config["slb"] = slb
         
         return config
     
@@ -410,15 +487,35 @@ class RoutingConfigTab(QWidget):
         self.bgp_peer_ip.clear()
         self.bgp_peer_as.setValue(1)
         self.bgp_network_input.clear()
+
+        self.real_servers.clear()
+        self.virtual_servers.clear()
+        self.slb_rs_list.clear()
+        self.slb_vs_list.clear()
+        self.slb_farm.setText("web")
+        self.slb_predictor.setCurrentIndex(0)
+        self.slb_icmp.setChecked(True)
+        self.slb_rs_name.clear()
+        self.slb_rs_ip.clear()
+        self.slb_rs_port.setValue(80)
+        self.slb_rs_weight.setValue(100)
+        self.slb_vs_name.clear()
+        self.slb_vs_ip.clear()
+        self.slb_vs_type.setCurrentIndex(0)
+        self.slb_vs_port.setValue(80)
     
     def get_config_data(self):
         """获取配置数据字典"""
-        return {
+        data = {
             "static_routes": self.static_routes.copy(),
             "ospf_networks": self.ospf_networks.copy(),
             "bgp_peers": self.bgp_peers.copy(),
             "bgp_networks": self.bgp_networks.copy()
         }
+        slb = self._slb_payload()
+        if slb:
+            data["slb"] = slb
+        return data
     
     def load_config(self, config):
         """从配置字典加载配置"""
@@ -445,3 +542,88 @@ class RoutingConfigTab(QWidget):
         
         self.rip_version.setValue(2)
         self.rip_networks.clear()
+
+        slb = config.get("slb") or {}
+        if slb:
+            self.slb_farm.setText(slb.get("server_farm") or "web")
+            predictor = slb.get("predictor") or "round-robin"
+            index = self.slb_predictor.findText(predictor)
+            if index >= 0:
+                self.slb_predictor.setCurrentIndex(index)
+            self.slb_icmp.setChecked(slb.get("health_check", "icmp") == "icmp")
+            self.real_servers = [dict(item) for item in slb.get("real_servers") or []]
+            self.slb_rs_list.clear()
+            for item in self.real_servers:
+                self.slb_rs_list.addItem(self._real_label(item))
+            self.virtual_servers = [dict(item) for item in slb.get("virtual_servers") or []]
+            self.slb_vs_list.clear()
+            for item in self.virtual_servers:
+                self.slb_vs_list.addItem(self._virtual_label(item))
+
+    def set_slb_visible(self, visible):
+        self.slb_group.setVisible(bool(visible))
+
+    def _slb_payload(self):
+        if not self.real_servers and not self.virtual_servers:
+            return None
+        return {
+            "server_farm": self.slb_farm.text().strip() or "web",
+            "predictor": self.slb_predictor.currentText(),
+            "health_check": "icmp" if self.slb_icmp.isChecked() else "",
+            "real_servers": [dict(item) for item in self.real_servers],
+            "virtual_servers": [dict(item) for item in self.virtual_servers],
+        }
+
+    @staticmethod
+    def _real_label(item):
+        return f"{item.get('name', '')} {item.get('ip', '')}:{item.get('port', '')} 权值 {item.get('weight', '')}"
+
+    @staticmethod
+    def _virtual_label(item):
+        return f"{item.get('name', '')} {item.get('type', 'tcp')} {item.get('ip', '')}:{item.get('port', '')}"
+
+    def add_real_server(self):
+        name = self.slb_rs_name.text().strip()
+        ip_addr = self.slb_rs_ip.text().strip()
+        if not name or not ip_addr:
+            QMessageBox.warning(self, "警告", "请填写实服务器名称和地址！")
+            return
+        item = {
+            "name": name,
+            "ip": ip_addr,
+            "port": self.slb_rs_port.value(),
+            "weight": self.slb_rs_weight.value(),
+        }
+        self.real_servers.append(item)
+        self.slb_rs_list.addItem(self._real_label(item))
+        self.slb_rs_name.clear()
+        self.slb_rs_ip.clear()
+
+    def del_real_server(self):
+        row = self.slb_rs_list.currentRow()
+        if row >= 0:
+            self.slb_rs_list.takeItem(row)
+            del self.real_servers[row]
+
+    def add_virtual_server(self):
+        name = self.slb_vs_name.text().strip()
+        ip_addr = self.slb_vs_ip.text().strip()
+        if not name or not ip_addr:
+            QMessageBox.warning(self, "警告", "请填写虚服务器名称和地址！")
+            return
+        item = {
+            "name": name,
+            "type": self.slb_vs_type.currentText(),
+            "ip": ip_addr,
+            "port": self.slb_vs_port.value(),
+        }
+        self.virtual_servers.append(item)
+        self.slb_vs_list.addItem(self._virtual_label(item))
+        self.slb_vs_name.clear()
+        self.slb_vs_ip.clear()
+
+    def del_virtual_server(self):
+        row = self.slb_vs_list.currentRow()
+        if row >= 0:
+            self.slb_vs_list.takeItem(row)
+            del self.virtual_servers[row]

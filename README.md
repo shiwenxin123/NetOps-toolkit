@@ -1,6 +1,6 @@
 # NetOps Toolkit v4.0 - 网络运维工具集
 
-一个功能强大、现代化界面的**多品牌网络设备配置生成工具**，支持**华为/H3C/锐捷/迈普/中兴交换机**、**中兴 ROSNG**、**中兴 OLT**和**迪普 FW1000 防火墙**，内置**11+网络工具**，基于 Python + PyQt5 开发。
+一个功能强大、现代化界面的**多品牌网络设备配置生成工具**，支持**华为/H3C/锐捷/迈普/中兴交换机**、**中兴 ROSNG**、**中兴 OLT**、**迪普 FW1000 防火墙**和**华三 SecPath 负载均衡**，内置**11+网络工具**，基于 Python + PyQt5 开发。
 
 ## v4.0 新特性
 
@@ -20,7 +20,8 @@
 - **中兴 OLT** - ZXA10 C300/C320 与 C600 配置生成（主机名、管理地址、上联 VLAN、SSH、静态路由；ONU 注册只留注释）
 - **迪普 FW1000 (DPtech)** - 防火墙 Conplat 配置生成（管理口、VLAN、安全域、包过滤、bond）
 - **迪普 LSW (DPtech)** - LSW3600/LSW5600 交换机 Conplat 配置生成（VLAN、Access/Trunk、SSH、bond）
-- 一键切换设备类型。选择「中兴」后，生成结果使用经典 ZXROS。选择「中兴 ROSNG」后，生成结果使用 `switchvlan-configuration`、`system-user` 和 `gei-0/1/1/1`。选择「迪普 FW1000」后，生成结果使用 `conf-mode`、`gige0_1` 和 `security-policy`。选择「迪普 LSW」后，生成结果是交换机脚本：`switchport`、`ssh enable`、`bond`，没有安全策略。选择「中兴 OLT (C300/C600)」后，生成结果是 ZXAN 脚本：`hostname`、`interface vlan mng1` 或 `interface vlan100`、`switchport vlan ... tag`。C300 与 C600 的接口名不要混在一份脚本里
+- **华三负载均衡 (H3C SecPath)** - 服务器负载均衡配置生成（实服务器、实服务组、虚服务器、ICMP 健康检查、静态路由）
+- 一键切换设备类型。选择「中兴」后，生成结果使用经典 ZXROS。选择「中兴 ROSNG」后，生成结果使用 `switchvlan-configuration`、`system-user` 和 `gei-0/1/1/1`。选择「迪普 FW1000」后，生成结果使用 `conf-mode`、`gige0_1` 和 `security-policy`。选择「迪普 LSW」后，生成结果是交换机脚本：`switchport`、`ssh enable`、`bond`，没有安全策略。选择「中兴 OLT (C300/C600)」后，生成结果是 ZXAN 脚本：`hostname`、`interface vlan mng1` 或 `interface vlan100`、`switchport vlan ... tag`。C300 与 C600 的接口名不要混在一份脚本里。选择「华三负载均衡 (SecPath)」后，生成结果是 Comware 负载均衡脚本：`system-view`、`real-server`、`server-farm`、`virtual-server`，不是交换机的 `switchport`
 
 ### 🧰 内置网络工具箱
 - **子网计算器** - IP子网计算、子网划分、IP范围转CIDR
@@ -30,7 +31,7 @@
 - **DNS/Whois** - DNS查询、反向DNS、Whois域名信息
 - **网络信息** - 本机IP、公网IP查询
 - **IP转换** - 十进制/十六进制/二进制转换
-- **配置命令手册** - 华为/H3C/锐捷/迈普/中兴/中兴 ROSNG/中兴 OLT/迪普 FW1000/迪普 LSW 配置命令速查、配置案例
+- **配置命令手册** - 华为/H3C/锐捷/迈普/中兴/中兴 ROSNG/中兴 OLT/迪普 FW1000/迪普 LSW/华三负载均衡 配置命令速查、配置案例
 - **配置比较工具** - 配置差异对比、华为/H3C命令转换
 - **配置导入导出** - JSON/文本格式导入导出、配置解析
 
@@ -145,6 +146,7 @@ netops_toolkit/
 │   ├── zte_olt_config.py    # 中兴 ZXA10 C300/C600 OLT 配置生成器
 │   ├── dptech_config.py     # 迪普 FW1000 防火墙配置生成器
 │   ├── dptech_lsw_config.py # 迪普 LSW 交换机配置生成器
+│   ├── h3c_lb_config.py     # 华三 SecPath 负载均衡配置生成器
 │   └── qos_config.py        # QoS配置生成器
 └── utils/
     ├── templates.py         # 配置模板
@@ -158,7 +160,8 @@ netops_toolkit/
     │   ├── zte_rosng_manual.py # 中兴 ZXR10 ROSNG 命令速查
     │   ├── zte_olt_manual.py # 中兴 ZXA10 C300/C600 OLT 命令速查
     │   ├── dptech_manual.py # 迪普 FW1000 命令速查
-    │   └── dptech_lsw_manual.py # 迪普 LSW 命令速查
+    │   ├── dptech_lsw_manual.py # 迪普 LSW 命令速查
+│   └── h3c_lb_manual.py     # 华三 SecPath 负载均衡命令速查
     └── network_tools/       # 网络工具模块
         ├── subnet_calculator.py  # 子网计算器
         ├── ping_tool.py          # Ping工具
@@ -170,7 +173,7 @@ netops_toolkit/
 ## 使用说明
 
 ### 配置生成
-1. 选择设备品牌（华为/H3C/锐捷/迈普/中兴/中兴 ROSNG/中兴 OLT/迪普 FW1000/迪普 LSW）
+1. 选择设备品牌（华为/H3C/锐捷/迈普/中兴/中兴 ROSNG/中兴 OLT/迪普 FW1000/迪普 LSW/华三负载均衡）
 2. 点击"配置模板"选择预设场景（可选）
 3. 在各标签页填写配置参数
 4. 点击"验证配置"检查参数格式
@@ -190,7 +193,7 @@ netops_toolkit/
 | DNS/Whois | 域名解析、反向查询、域名信息 |
 | 网络信息 | 本机IP、公网IP |
 | IP转换 | 十进制/十六进制/二进制转换 |
-| 配置命令手册 | 华为/H3C/中兴/中兴 ROSNG/中兴 OLT/迪普 FW1000/迪普 LSW 命令速查、配置案例 |
+| 配置命令手册 | 华为/H3C/中兴/中兴 ROSNG/中兴 OLT/迪普 FW1000/迪普 LSW/华三负载均衡 命令速查、配置案例 |
 | 配置比较工具 | 配置差异对比、华为/H3C命令转换 |
 | 配置导入导出 | JSON/文本导入导出、配置解析 |
 
@@ -309,6 +312,31 @@ OSPF、BGP、RIP、生成树、LLDP、PoE、端口安全和 DHCP Snooping 没有
 
 LSW3600-24GT4GP-LI 的彩页没有三层路由；入门型号如果拒绝 `router ospf`，删掉那一段即可。LLDP、PoE、端口安全、风暴抑制和编号 ACL 没有核对到可粘贴参数，脚本里只留注释。
 
+### 华三负载均衡（SecPath）
+
+品牌选「华三负载均衡 (SecPath)」后点「生成配置」。脚本按 Comware 输出，适合使用 `real-server` / `server-farm` / `virtual-server` 的华三负载均衡。华三交换机请改选「华三 (H3C)」，迪普应用交付不在这套语法里。
+
+到「路由配置」页填写实服务组、实服务器和虚服务器。管理口填 `GigabitEthernet1/0/1`。
+
+| 配置项 | 华三负载均衡 |
+|--------|----------------|
+| 进入配置 | `system-view`，结束用 `quit` |
+| 系统名 | `sysname` |
+| 接口地址 | `interface GigabitEthernet 1/0/1`，地址 `ip address 192.168.1.1 255.255.255.0` |
+| 静态路由 | `ip route-static 198.51.100.0 255.255.255.0 192.168.1.254` |
+| 健康检查 | `nqa template icmp icmp1`，实服务组里 `probe icmp1` |
+| 实服务器 | `real-server rs1`，`ip address`、`port`、`weight`、`server-farm` |
+| 虚服务器 | `virtual-server vs-web type tcp`，`virtual ip address`、`default server-farm`、`service enable` |
+| 同网段 | `arp-nd interface GigabitEthernet 1/0/1` |
+| 聚合 | `interface Route-Aggregation 1`，成员口 `port link-aggregation group 1` |
+| 保存 | 注释里的 `save`。脚本不会登录设备，也不会自动保存或重启 |
+
+`service enable` 只打开虚服务器。虚服务器缺省是关闭的，这条不是重启设备。
+
+以 `#` 开头的行是说明。Comware 命令行里输入 `#` 会退回用户视图，粘贴时请跳过这些行。
+
+SSH、本地用户、安全域、`security-policy`、OSPF、BGP、RIP、生成树和 `switchport` 没有写成可执行命令。安全策略示例需要先指定 trust/untrust，界面没有这个字段，所以不代填。模板里的 `Admin@123` 是占位口令，下发前请改掉，脚本本身不会把口令写出来。命令手册里选「华三负载均衡」可以对照同一套写法。
+
 ## 系统要求
 
 - Python 3.8+
@@ -318,6 +346,7 @@ LSW3600-24GT4GP-LI 的彩页没有三层路由；入门型号如果拒绝 `route
 ## 更新日志
 
 ### v4.0 (当前版本)
+- 🔥 新增华三 SecPath 服务器负载均衡配置生成（实服务器、虚服务器、ICMP 健康检查、静态路由）
 - 🔥 新增中兴 ZXA10 C300/C600 OLT 配置生成（管理地址、上联 VLAN、SSH、静态路由；ONU 注册只留注释）
 - 🔥 新增中兴 ZXR10 ROSNG 配置生成（5960/9900：VLAN、SSH、smartgroup、静态路由）
 - 🔥 新增迪普 LSW3600/LSW5600 交换机配置生成（Conplat：VLAN、SSH、bond）

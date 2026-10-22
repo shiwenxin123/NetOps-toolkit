@@ -535,6 +535,54 @@ class TemplateManager:
         }
     }
 
+    BUILTIN_H3C_LB_TEMPLATES = {
+        "Web 服务器负载均衡": {
+            "description": "华三 SecPath 负载均衡：管理地址、轮转调度、两台实服务器和虚服务器",
+            "config": {
+                "basic": {
+                    "hostname": "H3C-LB-01",
+                    "user": {"username": "admin", "password": "Admin@123", "level": 15},
+                    "mgmt_interface": {
+                        "interface": "GigabitEthernet1/0/1",
+                        "ip_address": "192.168.1.1",
+                        "mask": "255.255.255.0",
+                        "gateway": "192.168.1.254"
+                    },
+                    "enable_ssh": True
+                },
+                "routing": {
+                    "static_routes": [{
+                        "dest_network": "198.51.100.0",
+                        "mask": "255.255.255.0",
+                        "next_hop": "192.168.1.254",
+                        "preference": 60
+                    }],
+                    "slb": {
+                        "server_farm": "web",
+                        "predictor": "round-robin",
+                        "health_check": "icmp",
+                        "real_servers": [
+                            {"name": "rs1", "ip": "192.168.10.11", "port": 80, "weight": 150},
+                            {"name": "rs2", "ip": "192.168.10.12", "port": 80, "weight": 100}
+                        ],
+                        "virtual_servers": [
+                            {"name": "vs-web", "type": "tcp", "ip": "192.168.1.80", "port": 80}
+                        ]
+                    }
+                },
+                "interface": {
+                    "eth_trunks": [{
+                        "trunk_id": 1,
+                        "mode": "lacp-dynamic",
+                        "description": "uplink",
+                        "member_ports": ["GigabitEthernet1/0/3", "GigabitEthernet1/0/4"],
+                        "port_link_type": "access"
+                    }]
+                }
+            }
+        }
+    }
+
     def __init__(self, templates_dir: str = None):
         if templates_dir is None:
             templates_dir = os.path.join(os.path.dirname(__file__), "..", "templates")
@@ -647,6 +695,17 @@ class TemplateManager:
             )
             template.is_builtin = True
             self.templates[f"dptech-lsw_{name}"] = template
+
+        for name, data in self.BUILTIN_H3C_LB_TEMPLATES.items():
+            template = Template(
+                name=name,
+                device_type="h3c-lb",
+                description=data["description"],
+                config=data["config"],
+                tags=["内置", "H3C", "负载均衡"]
+            )
+            template.is_builtin = True
+            self.templates[f"h3c-lb_{name}"] = template
     
     def _load_custom_templates(self):
         if os.path.exists(self.custom_templates_file):
