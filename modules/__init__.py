@@ -15,6 +15,7 @@ from .zte_rosng_config import ZTEROSNGConfigError, generate_rosng_config
 from .zte_olt_config import ZTEOLTConfigError, generate_olt_config
 from .dptech_config import DPTechConfigError, generate_firewall_config
 from .dptech_lsw_config import DPTechLSWConfigError, generate_lsw_config
+from .h3c_lb_config import H3CLBConfigError, generate_lb_config
 
 __all__ = [
     "BasicConfigGenerator",
@@ -33,4 +34,6 @@ __all__ = [
     "generate_firewall_config",
     "DPTechLSWConfigError",
     "generate_lsw_config",
+    "H3CLBConfigError",
+    "generate_lb_config",
 ]

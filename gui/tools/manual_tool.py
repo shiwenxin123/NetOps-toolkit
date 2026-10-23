@@ -20,6 +20,7 @@ from utils.manual.zte_rosng_manual import ZTE_ROSNG_COMMANDS, ZTE_ROSNG_CASES
 from utils.manual.zte_olt_manual import ZTE_OLT_COMMANDS, ZTE_OLT_CASES
 from utils.manual.dptech_manual import DPTECH_COMMANDS, DPTECH_CASES
 from utils.manual.dptech_lsw_manual import DPTECH_LSW_COMMANDS, DPTECH_LSW_CASES
+from utils.manual.h3c_lb_manual import H3C_LB_COMMANDS, H3C_LB_CASES
 from gui.tool_styles import (
     TOOL_LABEL_STYLE, TOOL_LABEL_SECONDARY,
     TOOL_BUTTON_PRIMARY, TOOL_BUTTON_GHOST,
@@ -64,7 +65,8 @@ class ManualToolWidget(QWidget):
             "🔷 迪普 (DPtech)",
             "🔷 迪普 LSW",
             "🔷 中兴 ROSNG",
-            "🔷 中兴 OLT"
+            "🔷 中兴 OLT",
+            "🔷 华三负载均衡"
         ])
         self.device_combo.currentIndexChanged.connect(self.on_device_changed)
         header.addWidget(self.device_combo)
@@ -205,7 +207,8 @@ class ManualToolWidget(QWidget):
             "dptech": DPTECH_COMMANDS,
             "dptech-lsw": DPTECH_LSW_COMMANDS,
             "zte-rosng": ZTE_ROSNG_COMMANDS,
-            "zte-olt": ZTE_OLT_COMMANDS
+            "zte-olt": ZTE_OLT_COMMANDS,
+            "h3c-lb": H3C_LB_COMMANDS
         }
         commands = commands_map.get(device_type, HUAWEI_COMMANDS)
         
@@ -258,7 +261,8 @@ class ManualToolWidget(QWidget):
             "dptech": DPTECH_CASES,
             "dptech-lsw": DPTECH_LSW_CASES,
             "zte-rosng": ZTE_ROSNG_CASES,
-            "zte-olt": ZTE_OLT_CASES
+            "zte-olt": ZTE_OLT_CASES,
+            "h3c-lb": H3C_LB_CASES
         }
         cases = cases_map.get(device_type, HUAWEI_CASES)
         self.current_cases = cases
@@ -272,8 +276,8 @@ class ManualToolWidget(QWidget):
     
     def on_device_changed(self, index):
         """设备类型切换"""
-        device_types = ["huawei", "h3c", "ruijie", "maipu", "zte", "dptech", "dptech-lsw", "zte-rosng", "zte-olt"]
-        device_names = ["华为", "H3C", "锐捷", "迈普", "中兴", "迪普", "迪普LSW", "中兴ROSNG", "中兴OLT"]
+        device_types = ["huawei", "h3c", "ruijie", "maipu", "zte", "dptech", "dptech-lsw", "zte-rosng", "zte-olt", "h3c-lb"]
+        device_names = ["华为", "H3C", "锐捷", "迈普", "中兴", "迪普", "迪普LSW", "中兴ROSNG", "中兴OLT", "华三负载均衡"]
         
         self.current_device = device_types[index]
         self.load_commands(self.current_device)
