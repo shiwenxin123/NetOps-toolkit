@@ -103,6 +103,40 @@ python main.py
 run.bat
 ```
 
+**方式三：本机浏览器（第一版）**
+
+桌面版不用改。如果只想在浏览器里生成一份可粘贴的配置，在仓库根目录执行：
+
+```bash
+python web_server.py
+```
+
+或：
+
+```bash
+python -m web
+```
+
+然后打开 http://127.0.0.1:8765/ 。默认端口是 8765，可以用 `python web_server.py --port 9000` 更换。进程默认只监听 `127.0.0.1`，不会对局域网或公网开放。
+
+网页第一版直接调用现有生成器，目前可以生成：
+
+- **华三交换机 (H3C)**：`modules/h3c_config.py`
+- **中兴经典 ZXROS**：`modules/zte_config.py`（5200/5900/8900，不是 ROSNG，也不是 OLT）
+- **迪普 FW1000**：`modules/dptech_config.py`（不是 LSW 交换机）
+
+华为、锐捷、迈普、迪普 LSW、中兴 ROSNG、中兴 OLT、华三 SecPath 负载均衡在页面上标为「网页暂未开放」，请继续用 `python main.py`。
+
+也可以直接调接口，示例里不要写真实口令：
+
+```bash
+curl -s http://127.0.0.1:8765/api/generate \
+  -H 'Content-Type: application/json' \
+  -d '{"brand":"h3c","hostname":"Access-SW-01","mgmt_ip":"192.168.1.1"}'
+```
+
+`GET /api/brands` 返回哪些品牌已开放。加上 `?format=text` 得到纯文本配置。服务器不保存配置、不记录口令，也不会登录设备。
+
 ## 打包为EXE
 
 ```bash
@@ -114,7 +148,9 @@ python build.py
 
 ```
 netops_toolkit/
-├── main.py                  # 主程序入口
+├── main.py                  # 桌面版主程序入口
+├── web_server.py            # 本机网页入口（python web_server.py）
+├── web/                     # 浏览器第一版：表单、接口、现有生成器适配
 ├── build.py                 # EXE打包脚本
 ├── run.bat                  # Windows启动脚本
 ├── README.md                # 说明文档
