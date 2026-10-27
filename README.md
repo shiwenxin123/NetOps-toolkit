@@ -119,13 +119,18 @@ python -m web
 
 然后打开 http://127.0.0.1:8765/ 。默认端口是 8765，可以用 `python web_server.py --port 9000` 更换。进程默认只监听 `127.0.0.1`，不会对局域网或公网开放。
 
-网页第一版直接调用现有生成器，目前可以生成：
+网页直接调用现有生成器，目前可以生成：
 
+- **华为 (Huawei)**：`modules/basic_config.py`、`modules/vlan_config.py`、`modules/routing_config.py`（与桌面版同一套 VRP 脚本：`sysname`、`Vlanif`、`stelnet server enable`、`ip route-static`）
 - **华三交换机 (H3C)**：`modules/h3c_config.py`
+- **锐捷 (Ruijie)**：`modules/ruijie_config.py`（`hostname`、`switchport access`、`ip route`）
+- **迈普 (Maipu)**：`modules/maipu_config.py`（`hostname`、`switchport access`、`ip route`）
 - **中兴经典 ZXROS**：`modules/zte_config.py`（5200/5900/8900，不是 ROSNG，也不是 OLT）
 - **迪普 FW1000**：`modules/dptech_config.py`（不是 LSW 交换机）
 
-华为、锐捷、迈普、迪普 LSW、中兴 ROSNG、中兴 OLT、华三 SecPath 负载均衡在页面上标为「网页暂未开放」，请继续用 `python main.py`。
+迪普 LSW、中兴 ROSNG、中兴 OLT、华三 SecPath 负载均衡在页面上标为「网页暂未开放」，请继续用 `python main.py`。
+
+锐捷和迈普只复用各自模块里的生成器，网页不另写命令。桌面窗口选中这两个品牌时，通用页签仍按华为风格拼接；网页结果与 `ruijie_config.py` / `maipu_config.py` 一致，而不是那条通用拼接。
 
 也可以直接调接口，示例里不要写真实口令：
 

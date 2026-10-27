@@ -449,3 +449,57 @@ class RuijieInterfaceGenerator:
             lines.append(f" storm-control multicast level {rate_out}")
         lines.append("!")
         return "\n".join(lines)
+
+
+def _drop_trailing_end(text):
+    """generate_basic_all 固定以 end 收尾。VLAN 和路由要插在它前面。"""
+    body = text.rstrip("\n")
+    if body.endswith("\nend"):
+        return body[:-4]
+    return body
+
+
+def generate_switch_config(basic=None, vlan=None, routing=None):
+    """把结构化字段交给现有锐捷生成器，拼成一份脚本文本。
+
+    只调用 RuijieBasicGenerator、RuijieVLANGenerator、RuijieRoutingGenerator，
+    不新写命令，也不连接设备。基础配置自带的 end 会挪到 VLAN 和静态路由之后。
+    """
+    basic = basic or {}
+    vlan = vlan or {}
+    routing = routing or {}
+    chunks = []
+    if basic:
+        chunks.append(_drop_trailing_end(RuijieBasicGenerator.generate_basic_all(basic)))
+    if vlan.get("vlans"):
+        chunks.append(RuijieVLANGenerator.generate_vlans(vlan["vlans"]))
+    for item in vlan.get("interfaces") or []:
+        chunks.append(RuijieVLANGenerator.generate_interface(
+            item.get("interface", ""),
+            item.get("type") or "access",
+            item.get("vlan_id"),
+            item.get("trunk_vlans"),
+            item.get("pvid"),
+        ))
+    routes = []
+    for route in routing.get("static_routes") or []:
+        dest = route.get("dest", route.get("dest_network"))
+        nexthop = route.get("nexthop", route.get("next_hop"))
+        mask = route.get("mask")
+        if not dest or not mask or not nexthop:
+            continue
+        item = {"dest": dest, "mask": mask, "nexthop": nexthop}
+        if "preference" in route:
+            item["preference"] = route["preference"]
+        routes.append(item)
+    if routes:
+        chunks.append(RuijieRoutingGenerator.generate_static_routes(routes))
+    chunks = [chunk.rstrip("\n") for chunk in chunks if chunk and str(chunk).strip()]
+    if not chunks:
+        return ""
+    text = "\n".join(chunks)
+    if basic:
+        text += "\nend"
+    if not text.endswith("\n"):
+        text += "\n"
+    return text
