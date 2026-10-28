@@ -27,6 +27,8 @@ from modules.zte_olt_config import generate_olt_config
 from modules.dptech_config import DPTechConfigError, generate_firewall_config
 from modules.dptech_lsw_config import generate_lsw_config
 from modules.h3c_lb_config import H3CLBConfigError, generate_lb_config
+from modules.ruijie_config import generate_switch_config as generate_ruijie_config
+from modules.maipu_config import generate_switch_config as generate_maipu_config
 
 
 DEVICE_TYPES = ["huawei", "h3c", "ruijie", "maipu", "zte", "dptech", "dptech-lsw", "zte-rosng", "zte-olt", "h3c-lb"]
@@ -578,6 +580,14 @@ class MainWindow(QMainWindow):
             self.statusBar().showMessage(
                 "已切换到华三负载均衡。接口填 GigabitEthernet1/0/1，实服务器和虚服务器在「路由配置」页", 8000
             )
+        elif self.current_device_type == "ruijie":
+            self.statusBar().showMessage(
+                "已切换到锐捷模式。管理口示例 vlan 1，网关写成 ip route 0.0.0.0 0.0.0.0", 8000
+            )
+        elif self.current_device_type == "maipu":
+            self.statusBar().showMessage(
+                "已切换到迈普模式。管理口示例 vlan 1，SSH 使用 ip ssh server enable", 8000
+            )
         else:
             self.statusBar().showMessage(f"已切换到{name}模式", 3000)
 
@@ -585,7 +595,9 @@ class MainWindow(QMainWindow):
         """中兴和迪普使用自己的接口名，避免沿用华为的 Vlanif 示例。"""
         brand = self.current_device_type
         self.tabs["routing"].set_slb_visible(brand == "h3c-lb")
-        self.brand_hint.setVisible(brand in ("zte", "dptech", "dptech-lsw", "zte-rosng", "zte-olt", "h3c-lb"))
+        self.brand_hint.setVisible(brand in (
+            "ruijie", "maipu", "zte", "dptech", "dptech-lsw", "zte-rosng", "zte-olt", "h3c-lb"
+        ))
         if brand == "zte":
             self.brand_hint.setText(
                 "中兴 ZXR10 经典 CLI（5200/5900/8900）。"
@@ -653,6 +665,34 @@ class MainWindow(QMainWindow):
             self.tabs["security"].port_sec_interface.setPlaceholderText("例如: gei_1/19/1")
             self.tabs["security"].storm_interface.setPlaceholderText("例如: gei_1/19/1")
             self.tabs["security"].traffic_filter_interface.setPlaceholderText("例如: gei_1/19/1")
+        elif brand == "ruijie":
+            self.brand_hint.setText(
+                "锐捷交换机命令，与网页版同一套生成器。"
+                "管理口示例 vlan 1，接入端口示例 GigabitEthernet 0/1，网关写成 ip route 0.0.0.0 0.0.0.0。"
+                "点「生成配置」后在右侧预览，再复制或导出。"
+                "安全、OSPF、接口聚合和 VLAN 三层口这些页的字段还对不上生成器，暂时不会写进脚本。"
+            )
+            self.tabs["basic"].mgmt_interface.setText("vlan 1")
+            self.tabs["vlan"].interface_input.setPlaceholderText("例如: GigabitEthernet 0/1")
+            self.tabs["interface"].trunk_members.setPlaceholderText("成员端口，逗号分隔 例: GigabitEthernet 0/1,GigabitEthernet 0/2")
+            self.tabs["interface"].rate_interface.setPlaceholderText("接口名，例: GigabitEthernet 0/1")
+            self.tabs["security"].port_sec_interface.setPlaceholderText("例如: GigabitEthernet 0/1")
+            self.tabs["security"].storm_interface.setPlaceholderText("例如: GigabitEthernet 0/1")
+            self.tabs["security"].traffic_filter_interface.setPlaceholderText("例如: GigabitEthernet 0/1")
+        elif brand == "maipu":
+            self.brand_hint.setText(
+                "迈普交换机命令，与网页版同一套生成器。"
+                "管理口示例 vlan 1，接入端口示例 gigabitethernet 0/1，网关写成 ip route 0.0.0.0 0.0.0.0。"
+                "点「生成配置」后在右侧预览，再复制或导出。"
+                "安全、OSPF、接口聚合和 VLAN 三层口这些页的字段还对不上生成器，暂时不会写进脚本。"
+            )
+            self.tabs["basic"].mgmt_interface.setText("vlan 1")
+            self.tabs["vlan"].interface_input.setPlaceholderText("例如: gigabitethernet 0/1")
+            self.tabs["interface"].trunk_members.setPlaceholderText("成员端口，逗号分隔 例: gigabitethernet 0/1,gigabitethernet 0/2")
+            self.tabs["interface"].rate_interface.setPlaceholderText("接口名，例: gigabitethernet 0/1")
+            self.tabs["security"].port_sec_interface.setPlaceholderText("例如: gigabitethernet 0/1")
+            self.tabs["security"].storm_interface.setPlaceholderText("例如: gigabitethernet 0/1")
+            self.tabs["security"].traffic_filter_interface.setPlaceholderText("例如: gigabitethernet 0/1")
         elif brand == "h3c-lb":
             self.brand_hint.setText(
                 "华三 SecPath 服务器负载均衡（Comware），不是交换机，也不是迪普 ADX。"
@@ -849,6 +889,10 @@ class MainWindow(QMainWindow):
     
     def compose_config(self):
         """根据当前品牌生成脚本文本。没有可生成内容时返回空串。"""
+        if self.current_device_type == "ruijie":
+            return self._compose_vendor_switch(generate_ruijie_config)
+        if self.current_device_type == "maipu":
+            return self._compose_vendor_switch(generate_maipu_config)
         if self.current_device_type == "zte":
             return self._compose_zte_config()
         if self.current_device_type == "dptech":
@@ -899,6 +943,19 @@ class MainWindow(QMainWindow):
         if self.current_device_type == "h3c":
             full_config = full_config.replace("Vlanif", "Vlan-interface")
         return header + full_config
+
+    def _compose_vendor_switch(self, generate):
+        """锐捷、迈普复用各自的 generate_switch_config，不再拼接华为命令。
+
+        只把基础、VLAN 和路由页收来的字典交进去。生成器只用其中的主机名、
+        管理口、SSH、VLAN、接入端口和静态路由；安全、OSPF、接口聚合等
+        字段形状对不上，这里不另写命令，也不回退到华为生成器。
+        """
+        return generate(
+            basic=self.tabs["basic"].collect_config(),
+            vlan=self.tabs["vlan"].collect_config(),
+            routing=self.tabs["routing"].collect_config(),
+        )
 
     def _compose_zte_config(self):
         vlan_tab = self.tabs["vlan"]

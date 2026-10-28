@@ -37,17 +37,20 @@ class RuijieBasicGenerator:
             "!"
         ]
         if gateway:
-            lines.append(f"ip default-gateway {gateway}")
+            # 手册默认路由是 ip route 0.0.0.0 0.0.0.0，案例同样这么写。
+            lines.append(f"ip route 0.0.0.0 0.0.0.0 {gateway}")
         return "\n".join(lines)
     
     @staticmethod
     def generate_ssh(ssh_version=2, port=22, timeout=60, max_auth=5):
+        # ip ssh port 在锐捷手册和案例里都没有对应条目，先保持原写法。
         lines = [
             "ip ssh version 2" if ssh_version == 2 else "ip ssh version 1",
             f"ip ssh port {port}",
             f"ip ssh timeout {timeout}",
             f"ip ssh authentication-retries {max_auth}",
             "crypto key generate rsa modulus 2048",
+            "ip ssh server enable",
             "!",
             "line vty 0 4",
             " transport input ssh",
@@ -451,6 +454,13 @@ class RuijieInterfaceGenerator:
         return "\n".join(lines)
 
 
+def _allowed_vlans(value):
+    """桌面页把允许 VLAN 收成整数列表。手册示例是 10,20,30。"""
+    if isinstance(value, (list, tuple)):
+        return ",".join(str(item) for item in value)
+    return value
+
+
 def _drop_trailing_end(text):
     """generate_basic_all 固定以 end 收尾。VLAN 和路由要插在它前面。"""
     body = text.rstrip("\n")
@@ -478,7 +488,7 @@ def generate_switch_config(basic=None, vlan=None, routing=None):
             item.get("interface", ""),
             item.get("type") or "access",
             item.get("vlan_id"),
-            item.get("trunk_vlans"),
+            _allowed_vlans(item.get("trunk_vlans")),
             item.get("pvid"),
         ))
     routes = []

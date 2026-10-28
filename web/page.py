@@ -241,7 +241,7 @@ var HINTS = {
     mgmt: "vlan 1",
     access: "GigabitEthernet 0/1",
     privilege: "15",
-    note: "锐捷交换机。权限级别 0-15。管理口示例 vlan 1，接入端口示例 GigabitEthernet 0/1。网关写成 ip default-gateway。"
+    note: "锐捷交换机。权限级别 0-15。管理口示例 vlan 1，接入端口示例 GigabitEthernet 0/1。网关写成 ip route 0.0.0.0 0.0.0.0。"
   },
   maipu: {
     mgmt: "vlan 1",

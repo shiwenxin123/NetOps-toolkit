@@ -19,12 +19,14 @@ from modules.maipu_config import (
     MaipuBasicGenerator,
     MaipuRoutingGenerator,
     MaipuVLANGenerator,
+    generate_switch_config as generate_maipu_switch,
 )
 from modules.routing_config import RoutingConfigGenerator
 from modules.ruijie_config import (
     RuijieBasicGenerator,
     RuijieRoutingGenerator,
     RuijieVLANGenerator,
+    generate_switch_config as generate_ruijie_switch,
 )
 from modules.vlan_config import VLANConfigGenerator
 from web.server import MAX_BODY_BYTES, BindError, make_server, resolve_bind_host
@@ -265,12 +267,20 @@ class GenerateServiceTests(unittest.TestCase):
         self.assertIn("hostname Access-SW-01", web)
         self.assertIn("enable password LabOnly1", web)
         self.assertIn("username netops privilege 15 password LabOnly1", web)
-        self.assertIn("ip default-gateway 192.168.1.254", web)
+        self.assertIn("ip route 0.0.0.0 0.0.0.0 192.168.1.254", web)
+        self.assertIn("ip ssh version 2", web)
+        self.assertIn("ip ssh server enable", web)
+        self.assertIn("crypto key generate rsa modulus 2048", web)
         self.assertIn("switchport access vlan 10", web)
         self.assertIn("ip route 10.2.0.0 255.255.0.0 10.1.1.2 60", web)
         self.assertIn("line vty 0 4", web)
+        self.assertIn(" transport input ssh", web)
+        self.assertNotIn("ip default-gateway", web)
         self.assertNotIn("sysname ", web)
         self.assertNotIn("stelnet", web)
+        self.assertNotIn("ip route-static", web)
+        self.assertNotIn("port link-type", web)
+        self.assertNotIn("local-user ", web)
         self.assertTrue(web.rstrip().endswith("end"))
 
     def test_maipu_matches_maipu_generator(self):
@@ -294,11 +304,20 @@ class GenerateServiceTests(unittest.TestCase):
         self.assertEqual(web, expected)
         self.assertIn("hostname Access-SW-01", web)
         self.assertIn("ip route 0.0.0.0 0.0.0.0 192.168.1.254", web)
+        self.assertIn("ip ssh version 2", web)
+        self.assertIn("ip ssh server enable", web)
+        self.assertIn("crypto key generate rsa modulus 2048", web)
+        self.assertNotRegex(web, r"(?m)^crypto key generate rsa$")
         self.assertIn("switchport access vlan 10", web)
         self.assertIn("ip route 10.2.0.0 255.255.0.0 10.1.1.2 60", web)
         self.assertIn("line vty 0 15", web)
+        self.assertIn(" transport input ssh", web)
         self.assertNotIn("ip default-gateway", web)
         self.assertNotIn("sysname ", web)
+        self.assertNotIn("stelnet", web)
+        self.assertNotIn("ip route-static", web)
+        self.assertNotIn("port link-type", web)
+        self.assertNotIn("local-user ", web)
         self.assertNotIn("line vty 0 4", web)
 
     def test_new_brands_reject_bad_vlan_ip_and_interface(self):
@@ -319,6 +338,20 @@ class GenerateServiceTests(unittest.TestCase):
             generate_config(_sample("huawei", privilege=16))
         self.assertIn("权限级别", str(level_error.exception))
         self.assertIn("0-15", str(level_error.exception))
+
+    def test_trunk_allowed_vlan_list_follows_manual(self):
+        interfaces = [{
+            "interface": "GigabitEthernet 0/24",
+            "type": "trunk",
+            "trunk_vlans": [10, 20, 30],
+            "pvid": 1,
+        }]
+        for generate in (generate_ruijie_switch, generate_maipu_switch):
+            text = generate(vlan={"interfaces": interfaces})
+            self.assertIn(" switchport trunk allowed vlan 10,20,30", text)
+            self.assertIn(" switchport trunk native vlan 1", text)
+            self.assertNotIn("[10, 20, 30]", text)
+            self.assertNotIn("port trunk allow-pass", text)
 
     def test_markup_in_hostname_is_rejected(self):
         with self.assertRaises(WebInputError) as caught:
@@ -545,6 +578,147 @@ class HuaweiDesktopParityTests(unittest.TestCase):
         desktop = self.window.compose_config()
         web = generate_config(payload)["config"]
         self.assertEqual(_normalize_stamp(desktop), _normalize_stamp(web))
+
+
+def _fill_desktop_like_web(window, payload):
+    """把网页样例填进桌面页签。先切品牌，因为切换会清空输入。"""
+    from gui.main_window import DEVICE_TYPES
+
+    window.device_combo.setCurrentIndex(DEVICE_TYPES.index(payload["brand"]))
+    basic = window.tabs["basic"]
+    basic.hostname_input.setText(payload["hostname"])
+    basic.password_input.setText(payload["enable_password"])
+    basic.encrypted_checkbox.setChecked(False)
+    basic.username_input.setText(payload["username"])
+    basic.user_password_input.setText(payload["user_password"])
+    basic.user_encrypted.setChecked(False)
+    basic.privilege_level.setValue(payload["privilege"])
+    basic.enable_ssh.setChecked(True)
+    basic.ssh_version.setValue(2)
+    basic.ssh_port.setValue(22)
+    basic.ssh_timeout.setValue(60)
+    basic.ssh_max_auth.setValue(5)
+    basic.enable_telnet.setChecked(False)
+    basic.log_enable.setChecked(False)
+    basic.mgmt_interface.setText(payload["mgmt_interface"])
+    basic.mgmt_ip.setText(payload["mgmt_ip"])
+    basic.mgmt_mask.setText(payload["mgmt_mask"])
+    basic.mgmt_gateway.setText(payload["gateway"])
+
+    vlan = window.tabs["vlan"]
+    vlan.vlan_id_input.setValue(payload["vlan_id"])
+    vlan.vlan_name_input.setText(payload["vlan_name"])
+    vlan.add_vlan()
+    vlan.interface_input.setText(payload["access_interface"])
+    vlan.vlan_type_combo.setCurrentText("access")
+    vlan.port_vlan_id.setValue(payload["access_vlan"])
+    vlan.add_interface()
+
+    routing = window.tabs["routing"]
+    routing.route_dest.setText(payload["route_dest"])
+    routing.route_mask.setText(payload["route_mask"])
+    routing.route_nexthop.setText(payload["route_nexthop"])
+    routing.route_preference.setValue(60)
+    routing.add_static_route()
+
+
+class RuijieMaipuDesktopParityTests(unittest.TestCase):
+    """桌面选锐捷或迈普时，走厂商生成器，并与网页同一份输出。"""
+
+    @classmethod
+    def setUpClass(cls):
+        os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+        from PyQt5.QtWidgets import QApplication
+        from gui.main_window import MainWindow
+
+        cls.app = QApplication.instance() or QApplication([])
+        cls.MainWindow = MainWindow
+
+    def setUp(self):
+        self.window = self.MainWindow()
+
+    def tearDown(self):
+        self.window.close()
+        self.window.deleteLater()
+
+    def test_ruijie_desktop_matches_web_and_drops_huawei_commands(self):
+        payload = _sample("ruijie")
+        _fill_desktop_like_web(self.window, payload)
+        desktop = self.window.compose_config()
+        web = generate_config(payload)["config"]
+        self.assertEqual(desktop, web)
+        self.assertIn("ip ssh server enable", desktop)
+        self.assertIn("ip route 0.0.0.0 0.0.0.0 192.168.1.254", desktop)
+        self.assertIn("crypto key generate rsa modulus 2048", desktop)
+        for marker in (
+            "sysname ",
+            "stelnet",
+            "ip route-static",
+            "port link-type",
+            "port default vlan",
+            "local-user ",
+            "info-center",
+            "lldp enable",
+            "poe enable",
+            "acl number",
+            "ip default-gateway",
+        ):
+            self.assertNotIn(marker, desktop)
+
+    def test_maipu_desktop_matches_web_and_drops_huawei_commands(self):
+        payload = _sample("maipu")
+        _fill_desktop_like_web(self.window, payload)
+        desktop = self.window.compose_config()
+        web = generate_config(payload)["config"]
+        self.assertEqual(desktop, web)
+        self.assertIn("ip ssh server enable", desktop)
+        self.assertIn("crypto key generate rsa modulus 2048", desktop)
+        self.assertIn("line vty 0 15", desktop)
+        for marker in (
+            "sysname ",
+            "stelnet",
+            "ip route-static",
+            "port link-type",
+            "local-user ",
+            "info-center",
+            "lldp enable",
+            "poe enable",
+            "acl number",
+            "ip default-gateway",
+        ):
+            self.assertNotIn(marker, desktop)
+
+    def test_other_tabs_do_not_append_huawei_text(self):
+        payload = _sample("ruijie")
+        _fill_desktop_like_web(self.window, payload)
+        security = self.window.tabs["security"]
+        security.acl_number.setValue(3000)
+        security.rule_source.setText("10.2.0.0")
+        security.add_acl_rule()
+        before = self.window.compose_config()
+        self.assertNotIn("acl number", before)
+        self.assertNotIn("ip access-list", before)
+        self.assertEqual(before, generate_config(payload)["config"])
+
+    def test_huawei_and_h3c_stay_on_their_own_generators(self):
+        from gui.main_window import DEVICE_TYPES
+
+        self.window.device_combo.setCurrentIndex(DEVICE_TYPES.index("ruijie"))
+        self.window.device_combo.setCurrentIndex(DEVICE_TYPES.index("huawei"))
+        self.window.tabs["basic"].hostname_input.setText("HW-Core")
+        self.window.tabs["basic"].log_enable.setChecked(False)
+        huawei = self.window.compose_config()
+        self.assertIn("sysname HW-Core", huawei)
+        self.assertIn("stelnet server enable", huawei)
+        self.assertNotIn("ip ssh server enable", huawei)
+
+        self.window.device_combo.setCurrentIndex(DEVICE_TYPES.index("h3c"))
+        self.window.tabs["basic"].hostname_input.setText("H3C-Core")
+        self.window.tabs["basic"].mgmt_ip.setText("10.0.0.2")
+        h3c = self.window.compose_config()
+        self.assertIn("sysname H3C-Core", h3c)
+        self.assertIn("interface Vlan-interface1", h3c)
+        self.assertNotIn("hostname H3C-Core", h3c)
 
 
 if __name__ == "__main__":
