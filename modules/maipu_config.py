@@ -43,12 +43,14 @@ class MaipuBasicGenerator:
     
     @staticmethod
     def generate_ssh(ssh_version=2, port=22, timeout=60, max_auth=5):
+        # ip ssh port、line vty 0 15 手册没有对应条目（示例是 line vty 0 4），先保持原写法。
         lines = [
             f"ip ssh version {ssh_version}",
             f"ip ssh port {port}",
             f"ip ssh timeout {timeout}",
             f"ip ssh authentication-retries {max_auth}",
-            "crypto key generate rsa",
+            "crypto key generate rsa modulus 2048",
+            "ip ssh server enable",
             "!",
             "line vty 0 15",
             " transport input ssh",
@@ -451,3 +453,64 @@ class MaipuInterfaceGenerator:
             lines.append(f" storm-control multicast rate {rate_out}")
         lines.append("!")
         return "\n".join(lines)
+
+
+def _allowed_vlans(value):
+    """桌面页把允许 VLAN 收成整数列表。手册示例是 10,20,30。"""
+    if isinstance(value, (list, tuple)):
+        return ",".join(str(item) for item in value)
+    return value
+
+
+def _drop_trailing_end(text):
+    """generate_basic_all 固定以 end 收尾。VLAN 和路由要插在它前面。"""
+    body = text.rstrip("\n")
+    if body.endswith("\nend"):
+        return body[:-4]
+    return body
+
+
+def generate_switch_config(basic=None, vlan=None, routing=None):
+    """把结构化字段交给现有迈普生成器，拼成一份脚本文本。
+
+    只调用 MaipuBasicGenerator、MaipuVLANGenerator、MaipuRoutingGenerator，
+    不新写命令，也不连接设备。基础配置自带的 end 会挪到 VLAN 和静态路由之后。
+    """
+    basic = basic or {}
+    vlan = vlan or {}
+    routing = routing or {}
+    chunks = []
+    if basic:
+        chunks.append(_drop_trailing_end(MaipuBasicGenerator.generate_basic_all(basic)))
+    if vlan.get("vlans"):
+        chunks.append(MaipuVLANGenerator.generate_vlans(vlan["vlans"]))
+    for item in vlan.get("interfaces") or []:
+        chunks.append(MaipuVLANGenerator.generate_interface(
+            item.get("interface", ""),
+            item.get("type") or "access",
+            item.get("vlan_id"),
+            _allowed_vlans(item.get("trunk_vlans")),
+            item.get("pvid"),
+        ))
+    routes = []
+    for route in routing.get("static_routes") or []:
+        dest = route.get("dest", route.get("dest_network"))
+        nexthop = route.get("nexthop", route.get("next_hop"))
+        mask = route.get("mask")
+        if not dest or not mask or not nexthop:
+            continue
+        item = {"dest": dest, "mask": mask, "nexthop": nexthop}
+        if "preference" in route:
+            item["preference"] = route["preference"]
+        routes.append(item)
+    if routes:
+        chunks.append(MaipuRoutingGenerator.generate_static_routes(routes))
+    chunks = [chunk.rstrip("\n") for chunk in chunks if chunk and str(chunk).strip()]
+    if not chunks:
+        return ""
+    text = "\n".join(chunks)
+    if basic:
+        text += "\nend"
+    if not text.endswith("\n"):
+        text += "\n"
+    return text

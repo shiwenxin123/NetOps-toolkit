@@ -91,7 +91,7 @@ def render_page(brands, values=None, config_text="", error=""):
         _field("enable_password", "管理密码", "", "留空则不写入口令", password=True),
         _field("username", "用户名", current["username"], "例如 netops，留空则不写用户"),
         _field("user_password", "用户密码", "", "与用户名同时填写", password=True),
-        _field("privilege", "权限级别", current["privilege"], "华三 0-3，中兴/迪普 0-15"),
+        _field("privilege", "权限级别", current["privilege"], "华三 0-3，华为/锐捷/迈普/中兴/迪普 0-15"),
         "<label class=\"check\"><input type=\"checkbox\" id=\"enable_ssh\" name=\"enable_ssh\" value=\"1\"%s> 开启 SSH</label>"
         % (" checked" if checked else ""),
         "</section>",
@@ -225,11 +225,29 @@ pre { overflow: auto; background: #f7f9fb; padding: 12px; border-radius: 8px; }
 
 _SCRIPT = """
 var HINTS = {
+  huawei: {
+    mgmt: "Vlanif1",
+    access: "GigabitEthernet0/0/1",
+    privilege: "15",
+    note: "华为 VRP 交换机。权限级别 0-15。管理口示例 Vlanif1，接入端口示例 GigabitEthernet0/0/1。静态路由优先级按桌面默认写成 60。"
+  },
   h3c: {
     mgmt: "Vlan-interface1",
     access: "GigabitEthernet1/0/1",
     privilege: "3",
     note: "华三 Comware 交换机。权限级别请填 0-3。管理口示例 Vlan-interface1，接入端口示例 GigabitEthernet1/0/1。"
+  },
+  ruijie: {
+    mgmt: "vlan 1",
+    access: "GigabitEthernet 0/1",
+    privilege: "15",
+    note: "锐捷交换机。权限级别 0-15。管理口示例 vlan 1，接入端口示例 GigabitEthernet 0/1。网关写成 ip route 0.0.0.0 0.0.0.0。"
+  },
+  maipu: {
+    mgmt: "vlan 1",
+    access: "gigabitethernet 0/1",
+    privilege: "15",
+    note: "迈普交换机。权限级别 0-15。管理口示例 vlan 1，接入端口示例 gigabitethernet 0/1。网关写成默认路由。"
   },
   zte: {
     mgmt: "Vlanif1",
@@ -244,7 +262,7 @@ var HINTS = {
     note: "迪普 FW1000。主机名最长 20 位且不要用中文。管理口 Vlanif1 会写成 vlan-if 1，接入端口示例 gige0_1。不是 LSW。"
   }
 };
-var DEFAULT_MGMT = ["Vlan-interface1", "Vlanif1", ""];
+var DEFAULT_MGMT = ["Vlan-interface1", "Vlanif1", "vlan 1", ""];
 var DEFAULT_PRIV = ["3", "15", ""];
 
 function applyHint(resetDefaults) {

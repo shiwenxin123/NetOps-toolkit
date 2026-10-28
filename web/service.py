@@ -2,14 +2,21 @@
 # -*- coding: utf-8 -*-
 """把网页上的少量字段交给现有生成器。
 
-不拼接 CLI，也不登录设备。华三走 H3CConfigGenerator，中兴经典走
-generate_switch_config，迪普 FW1000 走 generate_firewall_config。
+不另写命令，也不登录设备。华为走基础/VLAN/路由生成器（与桌面版相同），
+华三走 H3CConfigGenerator，锐捷和迈普走各自的 generate_switch_config，
+中兴经典走 generate_switch_config，迪普 FW1000 走 generate_firewall_config。
 """
 
 import re
+import time
 
+from modules.basic_config import BasicConfigGenerator
 from modules.dptech_config import DPTechConfigError, generate_firewall_config
 from modules.h3c_config import H3CConfigGenerator
+from modules.maipu_config import generate_switch_config as generate_maipu_config
+from modules.routing_config import RoutingConfigGenerator
+from modules.ruijie_config import generate_switch_config as generate_ruijie_config
+from modules.vlan_config import VLANConfigGenerator
 from modules.zte_config import ZTEConfigError, generate_switch_config
 
 
@@ -24,20 +31,56 @@ _INTERFACE = re.compile(r"^[A-Za-z0-9_./:-][A-Za-z0-9_./: -]{0,63}$")
 _UNSAFE = re.compile(r"[\x00-\x1f\x7f]")
 _META = set("`;&|$<>\\\"'")
 
-_PRIVILEGE = {"h3c": (0, 3), "zte": (0, 15), "dptech": (0, 15)}
-_DEFAULT_PRIVILEGE = {"h3c": 3, "zte": 15, "dptech": 15}
+_PRIVILEGE = {
+    "huawei": (0, 15),
+    "h3c": (0, 3),
+    "ruijie": (0, 15),
+    "maipu": (0, 15),
+    "zte": (0, 15),
+    "dptech": (0, 15),
+}
+_DEFAULT_PRIVILEGE = {
+    "huawei": 15,
+    "h3c": 3,
+    "ruijie": 15,
+    "maipu": 15,
+    "zte": 15,
+    "dptech": 15,
+}
 _DEFAULT_MGMT = {
+    "huawei": "Vlanif1",
     "h3c": "Vlan-interface1",
+    "ruijie": "vlan 1",
+    "maipu": "vlan 1",
     "zte": "Vlanif1",
     "dptech": "Vlanif1",
 }
+_OPEN_BRANDS = "华为、华三交换机、锐捷、迈普、中兴经典 ZXROS、迪普 FW1000"
 
 SUPPORTED = (
+    {
+        "id": "huawei",
+        "name": "华为 (Huawei)",
+        "supported": True,
+        "note": "VRP 交换机脚本：sysname、Vlanif、port link-type、stelnet server enable。与桌面版同一套生成器。",
+    },
     {
         "id": "h3c",
         "name": "华三交换机 (H3C)",
         "supported": True,
         "note": "Comware 交换机脚本：sysname、Vlan-interface、port link-type、ssh server enable。",
+    },
+    {
+        "id": "ruijie",
+        "name": "锐捷 (Ruijie)",
+        "supported": True,
+        "note": "锐捷交换机：hostname、enable password、switchport access、ip route。管理口示例 vlan 1。",
+    },
+    {
+        "id": "maipu",
+        "name": "迈普 (Maipu)",
+        "supported": True,
+        "note": "迈普交换机：hostname、enable password、switchport access、ip route。管理口示例 vlan 1。",
     },
     {
         "id": "zte",
@@ -54,24 +97,6 @@ SUPPORTED = (
 )
 
 UNSUPPORTED = (
-    {
-        "id": "huawei",
-        "name": "华为 (Huawei)",
-        "supported": False,
-        "note": "网页暂未开放，请使用桌面版 python main.py。",
-    },
-    {
-        "id": "ruijie",
-        "name": "锐捷 (Ruijie)",
-        "supported": False,
-        "note": "网页暂未开放，请使用桌面版 python main.py。",
-    },
-    {
-        "id": "maipu",
-        "name": "迈普 (Maipu)",
-        "supported": False,
-        "note": "网页暂未开放，请使用桌面版 python main.py。",
-    },
     {
         "id": "dptech-lsw",
         "name": "迪普 LSW (交换机)",
@@ -151,11 +176,33 @@ def _dispatch(brand, payload):
         return H3CConfigGenerator.generate_all(document)
     if not any((basic, vlan, routing)):
         raise WebInputError("请至少填写主机名、管理地址、VLAN、接入端口或静态路由中的一项")
+    if brand == "huawei":
+        return _compose_huawei(basic, vlan, routing)
+    if brand == "ruijie":
+        return generate_ruijie_config(basic=basic, vlan=vlan, routing=routing)
+    if brand == "maipu":
+        return generate_maipu_config(basic=basic, vlan=vlan, routing=routing)
     if brand == "zte":
         return generate_switch_config(basic=basic, vlan=vlan, routing=routing)
     if brand == "dptech":
         return generate_firewall_config(basic=basic, vlan=vlan, routing=routing)
     raise WebInputError("网页暂未开放这个品牌")
+
+
+def _compose_huawei(basic, vlan, routing):
+    """与桌面版 compose 相同：三段生成器再用换行拼起来，前面加同一行标题。"""
+    parts = []
+    if basic:
+        parts.append(BasicConfigGenerator.generate_basic_all(basic))
+    if vlan:
+        parts.append(VLANConfigGenerator.generate_vlan_all(vlan))
+    if routing:
+        parts.append(RoutingConfigGenerator.generate_route_all(routing))
+    if not parts:
+        raise WebInputError("请至少填写主机名、管理地址、VLAN、接入端口或静态路由中的一项")
+    stamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    header = "#\n# 华为交换机配置脚本\n# 生成时间: %s\n#\n\n" % stamp
+    return header + "\n".join(parts)
 
 
 def _brand(value):
@@ -164,11 +211,11 @@ def _brand(value):
         raise WebInputError("请选择品牌")
     info = _BY_ID.get(text)
     if info is None:
-        raise WebInputError("未知品牌。网页第一版只生成华三交换机、中兴经典 ZXROS 和迪普 FW1000")
+        raise WebInputError("未知品牌。网页可生成：%s" % _OPEN_BRANDS)
     if not info["supported"]:
         raise WebInputError(
             "网页暂未开放「%s」。请继续使用桌面版 python main.py。"
-            "当前网页可生成：华三交换机、中兴经典 ZXROS、迪普 FW1000。" % info["name"]
+            "当前网页可生成：%s。" % (info["name"], _OPEN_BRANDS)
         )
     return text
 
@@ -253,6 +300,14 @@ def _sections(brand, payload):
         if brand == "h3c":
             routing["static"] = [{
                 "destination": route_dest,
+                "mask": route_mask,
+                "next_hop": route_nexthop,
+                "preference": 60,
+            }]
+        elif brand == "huawei":
+            # 桌面版静态路由优先级默认 60，生成器只在传入时写出 preference。
+            routing["static_routes"] = [{
+                "dest_network": route_dest,
                 "mask": route_mask,
                 "next_hop": route_nexthop,
                 "preference": 60,
